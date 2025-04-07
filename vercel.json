@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "framework": "vite",
+  "devCommand": "npx vite",
+  "rewrites": [
+    {
+      "source": "/((?!api/|manifest\\.webmanifest|favicon\\.svg|apple-touch-icon\\.png|pwa-.*\\.png|vite\\.svg).*)",
+      "destination": "/index.html"
+    }
+  ]
+} 

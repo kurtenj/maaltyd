@@ -1,0 +1,34 @@
+{
+  "title": "Tres Leches Cake",
+  "main": "cake",
+  "other": [
+    "flour",
+    "baking powder",
+    "salt",
+    "eggs",
+    "sugar",
+    "vanilla",
+    "milk",
+    "cream",
+    "evaporated milk",
+    "cinnamon",
+    "sweetened condensed milk",
+    "strawberries",
+    "whipped cream",
+    "fresh mint leaves"
+  ],
+  "instructions": [
+    "Preheat the oven to 350°F and grease a 9x13-inch baking pan with butter.",
+    "Mix together flour, baking powder, and salt in a medium bowl. Set aside.",
+    "In a stand mixer, beat eggs and sugar until light and fluffy. Add 2 teaspoons of vanilla.",
+    "On low speed, add flour mixture in parts, alternating with milk, until well combined.",
+    "Pour the batter into the pan and bake for 23-28 minutes until a tester comes out clean.",
+    "Let the cake cool for approximately 1 hour.",
+    "In a saucepan, whisk together cream, evaporated milk, and cinnamon. Bring to a boil, then simmer for 2 minutes.",
+    "Whisk in sweetened condensed milk and 1 teaspoon vanilla.",
+    "Poke holes in the cooled cake and pour the cream mixture over it.",
+    "Cover with plastic wrap and refrigerate for at least 2 hours or overnight.",
+    "Slice the cake, sprinkle with cinnamon, and serve with sliced strawberries, whipped cream, and mint leaves.",
+    "Store covered in the refrigerator for up to 3 days."
+  ]
+}
