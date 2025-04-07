@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": false,
+    "noEmit": true,
     "module": "CommonJS",
     "moduleResolution": "Node",
     "target": "ES2022",
@@ -11,7 +11,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "isolatedModules": false,
-    "sourceMap": true,
+    "sourceMap": false,
     "typeRoots": ["./node_modules/@types", "./api/@types"]
   },
   "include": ["api/**/*.ts", "api/**/*.d.ts"],

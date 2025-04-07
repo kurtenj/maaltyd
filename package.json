@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "vite",
     "start": "npm run dev",
-    "clean:api": "rm -f api/**/*.js api/**/*.js.map",
-    "build:api": "npm run clean:api && tsc -p tsconfig.api.json",
+    "build:api": "tsc -p tsconfig.api.json",
     "build:app": "tsc -p tsconfig.app.json && vite build",
     "build": "npm run build:api && npm run build:app",
     "lint": "eslint . -c eslint.config.mjs",
