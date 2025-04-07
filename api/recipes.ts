@@ -1,38 +1,36 @@
 import { list } from '@vercel/blob';
-// import { NextResponse } from 'next/server'; // Remove this line
 import { z } from 'zod';
-import type { Recipe } from '../src/types/recipe'; // Remove ', Ingredient'
+import type { Recipe } from '../src/types/recipe';
 
-// Zod schema for Ingredient
+console.log('--- !!! api/recipes.ts TOP LEVEL EXECUTION !!! ---');
+
 const IngredientSchema = z.object({
   name: z.string().min(1),
-  quantity: z.union([z.string(), z.number()]), // Allow string or number
-  unit: z.string(), // Unit can be empty string
+  quantity: z.union([z.string(), z.number()]),
+  unit: z.string(),
 });
 
-// Updated Recipe Schema
 const RecipeSchema = z.object({
   title: z.string().min(1),
   main: z.string().min(1),
-  other: z.array(IngredientSchema).min(1), // Use IngredientSchema
+  other: z.array(IngredientSchema).min(1),
   instructions: z.array(z.string()).min(1),
 });
 
-// export const runtime = 'edge'; // Keep commented out
+export async function GET(_request: Request) {
+  const tokenPresent = !!process.env.BLOB_READ_WRITE_TOKEN;
+  const tokenLength = process.env.BLOB_READ_WRITE_TOKEN?.length || 0;
+  console.log(`[api/recipes]: GET request received. BLOB_READ_WRITE_TOKEN present: ${tokenPresent}, Length: ${tokenLength}`);
 
-// Remove eslint-disable comment (already handled by rule config)
-export async function GET(_request: Request) { // Unused parameter prefixed with _
-  // console.log('[api/recipes]: GET request received (Simplified Test)'); // Remove test log
+  if (!tokenPresent) {
+    console.error('[api/recipes]: BLOB_READ_WRITE_TOKEN is missing!');
+    return new Response(JSON.stringify({ message: 'Server configuration error: Missing blob storage token.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-  // --- TEMP: Return hardcoded data --- 
-  // return new Response(JSON.stringify([{id: 'test-123', title: 'Hardcoded Test Recipe', main: 'Test Main', other: ['Test Other'], instructions: ['Step 1']}]), {
-  //   status: 200,
-  //   headers: { 'Content-Type': 'application/json' },
-  // });
-  // --- END TEMP ---
-
-  // Original Code Commented Out:
-  console.log('[api/recipes]: GET request received'); 
+  console.log('[api/recipes]: Attempting to list blobs...');
   try {
     const { blobs } = await list({
       prefix: 'recipes/'
@@ -60,10 +58,10 @@ export async function GET(_request: Request) { // Unused parameter prefixed with
 
         const recipeId = blob.pathname.split('/').pop()?.replace('.json', '') || 'unknown';
         
-        recipes.push({ 
+        recipes.push({
           ...validationResult.data, 
           id: recipeId 
-        });
+        } as Recipe);
       } catch (fetchError: unknown) {
           console.error(`[api/recipes]: Error fetching or parsing blob ${blob.pathname}:`, fetchError);
       }
@@ -78,9 +76,12 @@ export async function GET(_request: Request) { // Unused parameter prefixed with
   } catch (error: unknown) {
     console.error('[api/recipes]: Error listing blobs:', error);
     const message = error instanceof Error ? error.message : 'Failed to load recipes.';
-    return new Response(JSON.stringify({ message }), {
+    return new Response(JSON.stringify({ message, details: error instanceof Error ? error.stack : String(error) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
-} 
+}
+
+// No other functions (POST, PUT, DELETE for this file)
+// No imports needed for this simple test 
