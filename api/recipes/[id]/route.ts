@@ -171,10 +171,9 @@ export async function PUT(
     // Check if it's a ZodError (being more defensive)
     if (typeof error === 'object' && error !== null && error instanceof z.ZodError) {
       console.log('[Route] Caught ZodError');
-      // Assign to a new variable after the type check
-      const validationError = error;
+      // Type Assertion: Tell TypeScript we are sure it's a ZodError here
+      const validationError = error as z.ZodError;
       return NextResponse.json(
-        // Use the correctly typed variable
         { message: 'Invalid recipe data provided.', errors: validationError.flatten() }, 
         { status: 400 }
       );
