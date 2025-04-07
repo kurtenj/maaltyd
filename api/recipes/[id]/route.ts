@@ -1,6 +1,6 @@
 import { head } from '@vercel/blob';
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 // Remove Recipe type import as it's not directly used here
 // import type { Recipe } from '../../../src/types/recipe';
 // Import the action and custom error
@@ -165,14 +165,13 @@ export async function PUT(
     return NextResponse.json(updatedRecipe, { status: 200 });
 
   } catch (error: unknown) {
-    // Explicitly stringify the unknown error for logging
     console.error(`[Route] Error calling updateRecipeAction for id ${id}:`, String(error)); 
 
-    // Check if it's a ZodError (being more defensive)
-    if (typeof error === 'object' && error !== null && error instanceof z.ZodError) {
+    // Use the directly imported ZodError type
+    if (typeof error === 'object' && error !== null && error instanceof ZodError) {
       console.log('[Route] Caught ZodError');
-      // Type Assertion: Tell TypeScript we are sure it's a ZodError here
-      const validationError = error as z.ZodError;
+      // Assert using the directly imported ZodError type
+      const validationError = error as ZodError;
       return NextResponse.json(
         { message: 'Invalid recipe data provided.', errors: validationError.flatten() }, 
         { status: 400 }
