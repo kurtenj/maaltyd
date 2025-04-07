@@ -168,31 +168,29 @@ export async function PUT(
     // Explicitly stringify the unknown error for logging
     console.error(`[Route] Error calling updateRecipeAction for id ${id}:`, String(error)); 
 
-    if (error instanceof z.ZodError) {
+    // Check if it's a ZodError (being more defensive)
+    if (typeof error === 'object' && error !== null && error instanceof z.ZodError) {
       console.log('[Route] Caught ZodError');
       return NextResponse.json(
         { message: 'Invalid recipe data provided.', errors: error.flatten() }, 
         { status: 400 }
       );
+    } else {
+      // Handle other potential errors if it wasn't a ZodError
+      console.log('[Route] Caught other error type');
+      let message = 'Unknown server error during update.';
+      if (error instanceof Error) {
+          message = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+          message = error.message;
+      } else if (typeof error === 'string') {
+          message = error;
+      }
+      
+      return NextResponse.json(
+        { message: 'Server error updating recipe.', errorDetail: message },
+        { status: 500 } 
+      );
     }
-    
-    console.log('[Route] Caught other error type'); 
-    
-    // More robust handling for unknown error type
-    let message = 'Unknown server error during update.';
-    if (error instanceof Error) {
-        message = error.message;
-    } else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
-        // Handle cases where error might be an object with a message property
-        message = error.message;
-    } else if (typeof error === 'string') {
-        // Handle cases where the error itself might be a string
-        message = error;
-    }
-    
-    return NextResponse.json(
-      { message: 'Server error updating recipe.', errorDetail: message }, // Use a different key like errorDetail
-      { status: 500 } 
-    );
   }
 } 
