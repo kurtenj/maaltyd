@@ -1,7 +1,9 @@
-import { del, put, head } from '@vercel/blob';
+import { head } from '@vercel/blob';
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import type { Recipe } from '../../../src/types/recipe'; // Fix import path
+// Import the action and custom error
+import { deleteRecipeAction, updateRecipeAction, RecipeNotFoundError } from '../../lib/recipeActions';
 
 // Zod schema for Ingredient (needed for Recipe validation)
 const IngredientSchema = z.object({
@@ -93,16 +95,12 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 export async function DELETE(
   request: Request,
-  _context: { params: { id: string } } // Keep context for convention, but don't rely on it
+  _context: { params: { id: string } } 
 ) {
-  // console.log('DELETE /api/recipes/[id] invoked.'); 
-  // console.log('DELETE Context:', JSON.stringify(context, null, 2)); // Context is empty
   const url = new URL(request.url);
   const pathSegments = url.pathname.split('/');
   const id = pathSegments[pathSegments.length - 1]; 
-  // console.log(`DELETE ID parsed from URL: ${id}`);
-
-  // const id = context.params?.id; // Original method (not working)
+  
   if (!id) {
     return NextResponse.json(
       { message: 'Recipe ID is required.' },
@@ -110,50 +108,39 @@ export async function DELETE(
     );
   }
 
-  console.log(`Attempting to delete recipe blob with id: ${id}`);
-  const blobPathname = `recipes/${id}.json`;
+  console.log(`[Route] DELETE request for recipe id: ${id}`);
 
   try {
-    await del(blobPathname);
-    console.log(`Successfully deleted blob: ${blobPathname}`);
+    await deleteRecipeAction(id);
+    console.log(`[Route] deleteRecipeAction completed successfully for id: ${id}`);
     // Return 204 No Content on successful deletion
     return new NextResponse(null, { status: 204 }); 
+
   } catch (error: unknown) {
-    console.error(`Error deleting blob ${blobPathname}:`, error);
-    // Type checking for error object
-    let errorMessage = 'Unknown error';
-    const errorStatus = 500; // Use const
-    if (error instanceof Error) {
-        errorMessage = error.message;
+    console.error(`[Route] Error calling deleteRecipeAction for id ${id}:`, error);
+
+    if (error instanceof RecipeNotFoundError) {
+        // If the action specifically threw RecipeNotFoundError, return 404
+        return NextResponse.json({ message: error.message }, { status: 404 });
     }
-    // Vercel Blob errors might have a status property
-    if (typeof error === 'object' && error !== null && 'status' in error) {
-        // Type assertion after check (slightly better than direct any)
-        const status = (error as { status: unknown }).status; 
-        if (status === 404 || errorMessage.includes('The specified blob does not exist')) {
-            console.warn(`Blob not found during delete attempt (id: ${id}), returning success.`);
-            return new NextResponse(null, { status: 204 }); // Treat as success if already gone
-        }
-    }
+    
+    // Handle other potential errors
+    const message = error instanceof Error ? error.message : 'Unknown server error during deletion.';
     return NextResponse.json(
-      { message: 'Error deleting recipe.', error: errorMessage },
-      { status: errorStatus } // Use generic 500 unless specific status known
+      { message: 'Server error deleting recipe.', error: message },
+      { status: 500 } 
     );
   }
 }
 
 export async function PUT(
   request: Request,
-  _context: { params: { id: string } } // Keep context for convention, but don't rely on it
+  _context: { params: { id: string } } 
 ) {
-  // console.log('PUT /api/recipes/[id] invoked.');
-  // console.log('PUT Context:', JSON.stringify(context, null, 2)); // Context is empty
   const url = new URL(request.url);
   const pathSegments = url.pathname.split('/');
   const id = pathSegments[pathSegments.length - 1]; 
-  // console.log(`PUT ID parsed from URL: ${id}`);
 
-  // const id = context.params?.id; // Original method (not working)
   if (!id) {
     return NextResponse.json(
       { message: 'Recipe ID is required.' },
@@ -161,61 +148,39 @@ export async function PUT(
     );
   }
 
-  const blobPathname = `recipes/${id}.json`;
+  console.log(`[Route] PUT request for recipe id: ${id}`);
+
+  let requestBody: unknown;
+  try {
+    requestBody = await request.json();
+  } catch (error: unknown) {
+    console.error(`[Route] Error parsing JSON body for id ${id}:`, error);
+    return NextResponse.json({ message: 'Invalid JSON in request body.' }, { status: 400 });
+  }
 
   try {
-    const body = await request.json();
-    // console.log(`Received PUT request for id: ${id} with body:`, JSON.stringify(body));
+    // Call the action function
+    const updatedRecipe = await updateRecipeAction(id, requestBody);
+    console.log(`[Route] updateRecipeAction completed successfully for id: ${id}`);
+    // Return the result from the action
+    return NextResponse.json(updatedRecipe, { status: 200 });
 
-    const validationResult = RecipeSchema.safeParse(body); 
+  } catch (error: unknown) {
+    console.error(`[Route] Error calling updateRecipeAction for id ${id}:`, error);
 
-    // console.log('Validation Result:', JSON.stringify(validationResult, null, 2));
-
-    if (!validationResult.success) {
-      console.error('Recipe validation failed:', validationResult.error.errors);
+    if (error instanceof ZodError) {
+      // Handle validation errors thrown by the action
       return NextResponse.json(
-        { message: 'Invalid recipe data.', errors: validationResult.error.errors },
+        { message: 'Invalid recipe data provided.', errors: error.flatten() }, 
         { status: 400 }
       );
     }
-
-    // Construct the final recipe object including the ID
-    const validatedRecipeData = validationResult.data; 
     
-    // console.log('Validated Data before Spread:', JSON.stringify(validatedRecipeData, null, 2));
-
-    const recipeToSave: Recipe = {
-        ...validatedRecipeData,
-        id: id // Add the id back 
-    };
-
-    console.log(`Attempting to save validated recipe to blob: ${blobPathname}`);
-
-    // Upload the validated data
-    await put(blobPathname, JSON.stringify(recipeToSave, null, 2), {
-      access: 'public',
-      contentType: 'application/json',
-      addRandomSuffix: false // Ensure we overwrite the exact file
-    });
-
-    // console.log(`Successfully saved recipe to blob: ${blob.pathname}, URL: ${blob.url}`);
-
-    // Return the updated recipe data (optional, could also return 200 OK or 204 No Content)
-    return NextResponse.json(recipeToSave, { status: 200 });
-
-  } catch (error: unknown) {
-    // console.error(`Error processing PUT request for ${blobPathname}:`, error); // Keep error log?
-    console.error(`Error processing PUT request for ${blobPathname}:`, error);
-    let errorMessage = 'Unknown error';
-    if (error instanceof SyntaxError) { // Handle JSON parsing error
-         return NextResponse.json({ message: 'Invalid JSON in request body.' }, { status: 400 });
-    }
-    if (error instanceof Error) {
-        errorMessage = error.message;
-    }
+    // Handle other potential errors (e.g., blob storage failure)
+    const message = error instanceof Error ? error.message : 'Unknown server error during update.';
     return NextResponse.json(
-      { message: 'Error updating recipe.', error: errorMessage },
-      { status: 500 }
+      { message: 'Server error updating recipe.', error: message },
+      { status: 500 } 
     );
   }
 } 
