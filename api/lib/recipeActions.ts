@@ -83,16 +83,31 @@ export async function updateRecipeAction(id: string, data: unknown): Promise<Rec
   console.log(`[Action] Attempting to update recipe blob: ${blobPathname}`);
 
   // 1. Validate incoming data (excluding ID)
-  const validationResult = RecipeSchemaForUpdate.safeParse(data);
-
-  if (!validationResult.success) {
-    console.error('[Action] Recipe update validation failed:', validationResult.error.flatten());
-    // Throw the ZodError directly to be caught by the route handler
-    throw validationResult.error; 
+  let validatedRecipeData;
+  try {
+    const validationResult = RecipeSchemaForUpdate.safeParse(data);
+    if (!validationResult.success) {
+      // Throw a specific custom error for validation failure
+      const validationError = new Error('Validation failed');
+      // Attach properties using double cast (Error -> unknown -> Record)
+      (validationError as unknown as Record<string, unknown>)['isValidationError'] = true;
+      (validationError as unknown as Record<string, unknown>)['details'] = validationResult.error.flatten(); 
+      console.error('[Action] Recipe update validation failed:', validationError);
+      throw validationError; 
+    }
+    validatedRecipeData = validationResult.data;
+  } catch (err) {
+    // Re-throw if it wasn't the custom validation error
+    // Use type guard with indexed access check
+    if (typeof err === 'object' && err !== null && 'isValidationError' in err && err.isValidationError === true) {
+      throw err; // Re-throw the custom validation error
+    }
+    // Handle unexpected errors during parsing/validation if any
+    console.error('[Action] Unexpected error during validation:', err);
+    throw new Error('Unexpected error during data validation.');
   }
 
   // 2. Construct the full recipe object to save (including the ID)
-  const validatedRecipeData = validationResult.data;
   const recipeToSave: Recipe = {
     ...validatedRecipeData,
     id: id // Add the id back
@@ -119,4 +134,5 @@ export async function updateRecipeAction(id: string, data: unknown): Promise<Rec
   }
 }
 
-// We will add updateRecipeAction here later 
+// Remove redundant comment
+// // We will add updateRecipeAction here later 

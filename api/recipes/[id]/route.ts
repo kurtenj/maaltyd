@@ -1,6 +1,6 @@
 import { head } from '@vercel/blob';
 import { NextResponse } from 'next/server';
-import { z, ZodError } from 'zod';
+import { z } from 'zod';
 // Remove Recipe type import as it's not directly used here
 // import type { Recipe } from '../../../src/types/recipe';
 // Import the action and custom error
@@ -167,17 +167,17 @@ export async function PUT(
   } catch (error: unknown) {
     console.error(`[Route] Error calling updateRecipeAction for id ${id}:`, String(error)); 
 
-    // Use the directly imported ZodError type
-    if (typeof error === 'object' && error !== null && error instanceof ZodError) {
-      console.log('[Route] Caught ZodError');
-      // Assert using the directly imported ZodError type
-      const validationError = error as ZodError;
+    // Check for the custom validation error flag using indexed access
+    if (typeof error === 'object' && error !== null && 'isValidationError' in error && error.isValidationError === true) {
+      console.log('[Route] Caught validation error');
+      // Safely access details using indexed access check
+      const details = (typeof error === 'object' && error !== null && 'details' in error) ? error.details : 'Validation failed';
       return NextResponse.json(
-        { message: 'Invalid recipe data provided.', errors: validationError.flatten() }, 
+        { message: 'Invalid recipe data provided.', errors: details }, 
         { status: 400 }
       );
     } else {
-      // Handle other potential errors if it wasn't a ZodError
+       // Handle other potential errors
       console.log('[Route] Caught other error type');
       let message = 'Unknown server error during update.';
       if (error instanceof Error) {
