@@ -1,7 +1,8 @@
 import { head } from '@vercel/blob';
 import { NextResponse } from 'next/server';
-import { z, ZodError } from 'zod';
-import type { Recipe } from '../../../src/types/recipe'; // Fix import path
+import { z } from 'zod';
+// Remove Recipe type import as it's not directly used here
+// import type { Recipe } from '../../../src/types/recipe';
 // Import the action and custom error
 import { deleteRecipeAction, updateRecipeAction, RecipeNotFoundError } from '../../lib/recipeActions';
 
@@ -159,24 +160,22 @@ export async function PUT(
   }
 
   try {
-    // Call the action function
     const updatedRecipe = await updateRecipeAction(id, requestBody);
     console.log(`[Route] updateRecipeAction completed successfully for id: ${id}`);
-    // Return the result from the action
     return NextResponse.json(updatedRecipe, { status: 200 });
 
   } catch (error: unknown) {
     console.error(`[Route] Error calling updateRecipeAction for id ${id}:`, error);
 
-    if (error instanceof ZodError) {
-      // Handle validation errors thrown by the action
+    if (error instanceof z.ZodError) {
+      console.log('[Route] Caught ZodError');
       return NextResponse.json(
         { message: 'Invalid recipe data provided.', errors: error.flatten() }, 
         { status: 400 }
       );
     }
     
-    // Handle other potential errors (e.g., blob storage failure)
+    console.log('[Route] Caught other error type');
     const message = error instanceof Error ? error.message : 'Unknown server error during update.';
     return NextResponse.json(
       { message: 'Server error updating recipe.', error: message },
