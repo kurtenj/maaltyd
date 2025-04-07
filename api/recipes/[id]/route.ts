@@ -29,7 +29,8 @@ interface RouteParams {
   };
 }
 
-export const runtime = 'edge';
+// Remove or comment out to use default Node.js runtime
+// export const runtime = 'edge';
 
 export async function GET(request: Request, { params }: RouteParams) {
   console.log(`--- GET /api/recipes/[id] HANDLER EXECUTED for ID: ${params?.id} ---`);
