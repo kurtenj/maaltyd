@@ -99,6 +99,16 @@ export async function DELETE(
   request: Request,
   _context: { params: { id: string } } 
 ) {
+  // --- TEMPORARY TEST --- 
+  const url = new URL(request.url);
+  const pathSegments = url.pathname.split('/');
+  const id = pathSegments[pathSegments.length - 1]; 
+  console.log(`--- !!! DELETE /api/recipes/${id} ROUTE HANDLER REACHED (TEMP TEST) !!! ---`);
+  // Directly return success without calling action
+  return new NextResponse(null, { status: 204 }); 
+  // --- END TEMP TEST ---
+/*
+  // Original code commented out:
   const url = new URL(request.url);
   const pathSegments = url.pathname.split('/');
   const id = pathSegments[pathSegments.length - 1]; 
@@ -115,24 +125,22 @@ export async function DELETE(
   try {
     await deleteRecipeAction(id);
     console.log(`[Route] deleteRecipeAction completed successfully for id: ${id}`);
-    // Return 204 No Content on successful deletion
     return new NextResponse(null, { status: 204 }); 
 
   } catch (error: unknown) {
     console.error(`[Route] Error calling deleteRecipeAction for id ${id}:`, error);
 
     if (error instanceof RecipeNotFoundError) {
-        // If the action specifically threw RecipeNotFoundError, return 404
         return NextResponse.json({ message: error.message }, { status: 404 });
     }
     
-    // Handle other potential errors
     const message = error instanceof Error ? error.message : 'Unknown server error during deletion.';
     return NextResponse.json(
       { message: 'Server error deleting recipe.', error: message },
       { status: 500 } 
     );
   }
+*/
 }
 
 export async function PUT(
