@@ -175,10 +175,22 @@ export async function PUT(
       );
     }
     
-    console.log('[Route] Caught other error type');
-    const message = error instanceof Error ? error.message : 'Unknown server error during update.';
+    console.log('[Route] Caught other error type'); 
+    
+    // More robust handling for unknown error type
+    let message = 'Unknown server error during update.';
+    if (error instanceof Error) {
+        message = error.message;
+    } else if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+        // Handle cases where error might be an object with a message property
+        message = error.message;
+    } else if (typeof error === 'string') {
+        // Handle cases where the error itself might be a string
+        message = error;
+    }
+    
     return NextResponse.json(
-      { message: 'Server error updating recipe.', error: message },
+      { message: 'Server error updating recipe.', errorDetail: message }, // Use a different key like errorDetail
       { status: 500 } 
     );
   }
