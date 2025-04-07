@@ -165,7 +165,8 @@ export async function PUT(
     return NextResponse.json(updatedRecipe, { status: 200 });
 
   } catch (error: unknown) {
-    console.error(`[Route] Error calling updateRecipeAction for id ${id}:`, error);
+    // Explicitly stringify the unknown error for logging
+    console.error(`[Route] Error calling updateRecipeAction for id ${id}:`, String(error)); 
 
     if (error instanceof z.ZodError) {
       console.log('[Route] Caught ZodError');
