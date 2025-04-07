@@ -95,16 +95,12 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(
-  request: Request,
-  _context: { params: { id: string } } 
-) {
+export async function DELETE(request: Request) {
   // --- TEMPORARY TEST --- 
   const url = new URL(request.url);
   const pathSegments = url.pathname.split('/');
   const id = pathSegments[pathSegments.length - 1]; 
   console.log(`--- !!! DELETE /api/recipes/${id} ROUTE HANDLER REACHED (TEMP TEST) !!! ---`);
-  // Directly return success without calling action
   return new NextResponse(null, { status: 204 }); 
   // --- END TEMP TEST ---
 /*
@@ -143,10 +139,7 @@ export async function DELETE(
 */
 }
 
-export async function PUT(
-  request: Request,
-  _context: { params: { id: string } } 
-) {
+export async function PUT(request: Request) {
   const url = new URL(request.url);
   const pathSegments = url.pathname.split('/');
   const id = pathSegments[pathSegments.length - 1]; 
