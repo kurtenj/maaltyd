@@ -82,34 +82,50 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Step 3: Process the recipe with OpenAI
     const processedRecipe = await processRecipeWithOpenAI(recipeText, prompt);
     console.log(`[api/scrape-recipe]: Successfully processed recipe with OpenAI`);
+    
+    // Log the raw data to help with debugging
+    console.log('[api/scrape-recipe]: Raw data from OpenAI:', JSON.stringify(processedRecipe));
 
-    // Filter out any empty ingredients before validation
-    if (processedRecipe.other && Array.isArray(processedRecipe.other)) {
-      processedRecipe.other = processedRecipe.other.filter(ingredient => 
-        ingredient && 
-        typeof ingredient.name === 'string' && 
-        ingredient.name.trim().length > 0
-      );
+    // Make sure processedRecipe has all required fields
+    const sanitizedRecipe = {
+      title: processedRecipe.title || 'Imported Recipe',
+      main: processedRecipe.main || 'Main Ingredient',
+      other: Array.isArray(processedRecipe.other) ? processedRecipe.other : [],
+      instructions: Array.isArray(processedRecipe.instructions) ? processedRecipe.instructions : []
+    };
+
+    // Filter out any empty or invalid ingredients before validation
+    if (sanitizedRecipe.other) {
+      sanitizedRecipe.other = sanitizedRecipe.other
+        .filter(ingredient => ingredient && typeof ingredient === 'object')
+        .map(ingredient => ({
+          name: typeof ingredient.name === 'string' ? ingredient.name.trim() : 'Ingredient',
+          quantity: ingredient.quantity || '1',
+          unit: typeof ingredient.unit === 'string' ? ingredient.unit.trim() : ''
+        }))
+        .filter(ingredient => ingredient.name.length > 0);
       
       // Ensure we have at least one ingredient
-      if (processedRecipe.other.length === 0) {
-        processedRecipe.other = [{ name: 'Main ingredient (please edit)', quantity: '1', unit: '' }];
+      if (sanitizedRecipe.other.length === 0) {
+        sanitizedRecipe.other = [{ name: 'Main ingredient (please edit)', quantity: '1', unit: '' }];
       }
     }
 
     // Filter out any empty instruction steps
-    if (processedRecipe.instructions && Array.isArray(processedRecipe.instructions)) {
-      processedRecipe.instructions = processedRecipe.instructions
+    if (sanitizedRecipe.instructions) {
+      sanitizedRecipe.instructions = sanitizedRecipe.instructions
         .filter(step => typeof step === 'string' && step.trim().length > 0);
       
       // Ensure we have at least one instruction
-      if (processedRecipe.instructions.length === 0) {
-        processedRecipe.instructions = ['Preparation instructions (please edit)'];
+      if (sanitizedRecipe.instructions.length === 0) {
+        sanitizedRecipe.instructions = ['Preparation instructions (please edit)'];
       }
     }
 
-    // Step 4: Validate the processed recipe against our schema
-    const validationResult = RecipeSchema.safeParse(processedRecipe);
+    console.log('[api/scrape-recipe]: Sanitized recipe data:', JSON.stringify(sanitizedRecipe));
+
+    // Step 4: Validate the sanitized recipe against our schema
+    const validationResult = RecipeSchema.safeParse(sanitizedRecipe);
     if (!validationResult.success) {
       console.error('[api/scrape-recipe]: Recipe validation failed:', validationResult.error.flatten());
       
@@ -216,7 +232,7 @@ async function getLLMPrompt(): Promise<string> {
   return `
 You are a helpful assistant skilled in organizing cooking instructions.
 
-Your task is to take a full recipe (from a blog or website) and output a clean, simplified JSON version. The output should follow this structure:
+Your task is to take a full recipe (from a blog or website) and output a clean, simplified JSON version. The output should follow this structure EXACTLY:
 
 {
   "title": "The name of the recipe",
@@ -228,7 +244,14 @@ Your task is to take a full recipe (from a blog or website) and output a clean, 
   "instructions": ["Step-by-step cooking instructions in plain text"]
 }
 
-Accurately extract the quantity and unit for each ingredient listed in the 'other' array. Do not simplify or omit measurements.
+IMPORTANT GUIDELINES:
+1. Make sure ALL properties in the ingredients exist and have proper values. 
+2. NEVER leave "name" fields empty or blank - this will cause validation errors.
+3. If you're uncertain about a quantity, use "1" as a default.
+4. If you're uncertain about a unit, leave it as an empty string.
+5. Remove any ingredients with empty or null name values.
+6. Ensure "other" is always a valid array with at least one ingredient.
+7. Ensure "instructions" is always a valid array with at least one instruction.
 
 Focus on clarity and simplicity in the instructions. Remove brand names, product links, story content, or overly verbose language. Use plain English cooking instructions.
 
@@ -236,7 +259,7 @@ Here is the raw recipe text:
 
 [PASTED TEXT HERE]
 
-Output only the final JSON.
+Output only the final JSON that matches the expected format.
 `;
 }
 
@@ -248,28 +271,57 @@ async function processRecipeWithOpenAI(recipeText: string, prompt: string): Prom
     throw new Error('OpenAI client not initialized.');
   }
   
-  // Call OpenAI API
-  const completion = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    messages: [
-      { role: "system", content: prompt },
-      { role: "user", content: recipeText }
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.2,
-  });
-  
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('OpenAI returned no content.');
-  }
-  
   try {
-    // Parse the JSON response
-    return JSON.parse(content);
-  } catch (jsonError) {
-    console.error('[api/scrape-recipe]: Error parsing OpenAI response as JSON:', jsonError);
-    throw new Error('Failed to parse OpenAI response as JSON.');
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: prompt },
+        { role: "user", content: recipeText }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
+    
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('OpenAI returned no content.');
+    }
+    
+    try {
+      // Parse the JSON response
+      const parsedData = JSON.parse(content);
+      
+      // Add basic validation here
+      if (!parsedData || typeof parsedData !== 'object') {
+        throw new Error('Invalid response format: Not a valid object');
+      }
+      
+      if (!parsedData.title || typeof parsedData.title !== 'string') {
+        parsedData.title = 'Imported Recipe';
+      }
+      
+      if (!parsedData.main || typeof parsedData.main !== 'string') {
+        parsedData.main = 'Main Ingredient';
+      }
+      
+      if (!Array.isArray(parsedData.other) || parsedData.other.length === 0) {
+        parsedData.other = [{ name: 'Ingredient (please edit)', quantity: '1', unit: '' }];
+      }
+      
+      if (!Array.isArray(parsedData.instructions) || parsedData.instructions.length === 0) {
+        parsedData.instructions = ['Instructions (please edit)'];
+      }
+      
+      return parsedData;
+    } catch (jsonError) {
+      console.error('[api/scrape-recipe]: Error parsing OpenAI response as JSON:', jsonError);
+      console.error('[api/scrape-recipe]: Raw content received:', content);
+      throw new Error('Failed to parse OpenAI response as JSON. The API may have returned an invalid format.');
+    }
+  } catch (error) {
+    console.error('[api/scrape-recipe]: Error from OpenAI API:', error);
+    throw error;
   }
 }
 
