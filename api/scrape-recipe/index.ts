@@ -9,8 +9,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
-import path from 'path';
-import fs from 'fs/promises';
 
 // Initialize OpenAI client
 const openai = process.env.OPENAI_API_KEY 
@@ -213,13 +211,10 @@ Output only the final JSON.
 /**
  * Process recipe text with OpenAI to extract structured data
  */
-async function processRecipeWithOpenAI(recipeText: string, prompt: string): Promise<any> {
+async function processRecipeWithOpenAI(recipeText: string, prompt: string): Promise<Omit<Recipe, 'id'>> {
   if (!openai) {
     throw new Error('OpenAI client not initialized.');
   }
-  
-  // Replace placeholder in prompt with actual recipe text
-  const fullPrompt = prompt.replace('[PASTED TEXT HERE]', recipeText);
   
   // Call OpenAI API
   const completion = await openai.chat.completions.create({
@@ -250,15 +245,17 @@ async function processRecipeWithOpenAI(recipeText: string, prompt: string): Prom
  * Extract recipe data from HTML content
  * This is a simplified version that uses basic string manipulation
  * A production version would use more sophisticated parsing techniques
+ * 
+ * @deprecated This function is not currently used; recipe extraction is handled by the OpenAI model
  */
-function extractRecipeData(html: string, sourceUrl: string): Omit<Recipe, 'id'> {
+function _extractRecipeData(html: string, sourceUrl: string): Omit<Recipe, 'id'> {
   console.log(`[api/scrape-recipe]: Extracting recipe data from HTML content`);
   
   // Basic extraction logic - this is just a placeholder
   // In a real implementation, you'd use JSON-LD parsing, HTML parsing libraries, etc.
   
   // Search for a recipe title - looking for common patterns
-  let title = extractMetaTag(html, 'og:title') || 
+  const title = extractMetaTag(html, 'og:title') || 
               extractMetaTag(html, 'twitter:title') || 
               extractByClass(html, 'recipe-title') ||
               extractByClass(html, 'entry-title') ||
@@ -419,7 +416,7 @@ function extractInstructions(html: string): string[] {
         // Handle different structured data formats
         if (jsonData.recipeInstructions) {
           if (Array.isArray(jsonData.recipeInstructions)) {
-            jsonData.recipeInstructions.forEach((instruction: any) => {
+            jsonData.recipeInstructions.forEach((instruction: string | { text: string }) => {
               if (typeof instruction === 'string') {
                 instructions.push(instruction);
               } else if (instruction.text) {

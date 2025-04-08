@@ -95,7 +95,7 @@ const AddRecipePage: React.FC = () => {
     
     // Remove any existing ID as we're creating a new recipe
     // This handles cases where a Recipe type might be passed with an id
-    const { id, ...recipeWithoutId } = recipeToSave as any;
+    const { id: _id, ...recipeWithoutId } = recipeToSave as Recipe;
     
     logger.log('AddRecipePage', 'Saving recipe:', recipeWithoutId);
 

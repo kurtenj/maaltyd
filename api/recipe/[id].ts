@@ -149,7 +149,7 @@ export async function PUT(request: Request, context: HandlerContext): Promise<Ne
   let requestBody: unknown;
   try {
     requestBody = await request.json();
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     return NextResponse.json({ message: 'Invalid JSON in request body.' }, { status: 400 });
   }
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import type { Recipe } from '../types/recipe';
 
 function ApiTestPage() {
-  const [apiData, setApiData] = useState<any>(null);
+  const [apiData, setApiData] = useState<Recipe[] | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
