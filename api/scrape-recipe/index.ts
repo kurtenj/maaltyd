@@ -83,11 +83,43 @@ export async function POST(request: Request): Promise<NextResponse> {
     const processedRecipe = await processRecipeWithOpenAI(recipeText, prompt);
     console.log(`[api/scrape-recipe]: Successfully processed recipe with OpenAI`);
 
+    // Filter out any empty ingredients before validation
+    if (processedRecipe.other && Array.isArray(processedRecipe.other)) {
+      processedRecipe.other = processedRecipe.other.filter(ingredient => 
+        ingredient && 
+        typeof ingredient.name === 'string' && 
+        ingredient.name.trim().length > 0
+      );
+      
+      // Ensure we have at least one ingredient
+      if (processedRecipe.other.length === 0) {
+        processedRecipe.other = [{ name: 'Main ingredient (please edit)', quantity: '1', unit: '' }];
+      }
+    }
+
+    // Filter out any empty instruction steps
+    if (processedRecipe.instructions && Array.isArray(processedRecipe.instructions)) {
+      processedRecipe.instructions = processedRecipe.instructions
+        .filter(step => typeof step === 'string' && step.trim().length > 0);
+      
+      // Ensure we have at least one instruction
+      if (processedRecipe.instructions.length === 0) {
+        processedRecipe.instructions = ['Preparation instructions (please edit)'];
+      }
+    }
+
     // Step 4: Validate the processed recipe against our schema
     const validationResult = RecipeSchema.safeParse(processedRecipe);
     if (!validationResult.success) {
       console.error('[api/scrape-recipe]: Recipe validation failed:', validationResult.error.flatten());
-      throw new Error('The processed recipe data does not match the expected format.');
+      
+      // Provide more specific error information to help debugging
+      const errors = validationResult.error.flatten();
+      const errorMsg = Object.entries(errors.fieldErrors)
+        .map(([field, msgs]) => `${field}: ${msgs?.join(', ')}`)
+        .join('; ');
+        
+      throw new Error(`The processed recipe data does not match the expected format. Errors: ${errorMsg || 'unknown validation error'}`);
     }
 
     // Step 5: Return the validated recipe data
