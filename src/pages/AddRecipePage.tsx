@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+// Assuming recipeApi.create exists and POSTs to /api/recipes
+// If not, we can use direct fetch
+import { recipeApi } from '../services/api'; // Adjust if path is different
 import { useRecipes } from '../hooks/useRecipes';
 import { Link } from 'react-router-dom';
 import { logger } from '../utils/logger';
 import { tryCatchAsync } from '../utils/errorHandling';
 import { ROUTES } from '../utils/navigation';
+// Import the Recipe type
+import type { Recipe } from '../types/recipe';
 
 const AddRecipePage: React.FC = () => {
-  const [recipeInput, setRecipeInput] = useState(''); // Can be raw text or URL
+  const [recipeInput, setRecipeInput] = useState(''); // Expect JSON string here
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'error' | 'success'>('success');
@@ -19,51 +24,61 @@ const AddRecipePage: React.FC = () => {
     setIsLoading(true);
     setStatusMessage(null);
     setStatusType('success');
-
-    // Simple check if input looks like a URL
-    const isUrl = recipeInput.trim().startsWith('http://') || recipeInput.trim().startsWith('https://');
-    const requestBody = isUrl ? { url: recipeInput.trim() } : { rawText: recipeInput };
     
-    logger.log('AddRecipePage', 'Processing recipe', { type: isUrl ? 'url' : 'text' });
+    let parsedData: any;
 
-    // Define a separate function for the API call to use with tryCatchAsync
-    const processRecipe = async () => {
-      const response = await fetch('/api/process-recipe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+    // 1. Parse the input as JSON
+    try {
+      parsedData = JSON.parse(recipeInput);
+      logger.log('AddRecipePage', 'Parsed recipe JSON');
+    } catch (parseError: unknown) {
+      logger.error('AddRecipePage', 'Invalid JSON input:', parseError);
+      setStatusMessage(`Error: Invalid JSON format. Please paste valid recipe JSON. Error: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+      setStatusType('error');
+      setIsLoading(false);
+      return;
+    }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to process recipe' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
+    // Assert the type before passing to the API
+    // Use Omit<Recipe, 'id'> as the expected type for creation
+    const recipeDataForApi = parsedData as Omit<Recipe, 'id'>;
 
-      return await response.json();
+    // 2. Define function to call POST /api/recipes
+    const createRecipe = async () => {
+      const newRecipe = await recipeApi.create(recipeDataForApi);
+      return newRecipe;
     };
 
-    const [result, error] = await tryCatchAsync(
-      processRecipe,
+    // 3. Call the create function with error handling
+    const [newRecipeResult, error] = await tryCatchAsync(
+      createRecipe,
       'AddRecipePage',
-      'Failed to process recipe'
+      'Failed to save recipe' // Generic error message
     );
 
     if (error) {
       logger.error('AddRecipePage', 'Error submitting recipe:', error);
-      setStatusMessage(`Error: ${error.message}`);
+      // Check for specific conflict error from the API
+      const errorMessage = (error instanceof Error && error.message.includes('already exists')) 
+        ? error.message 
+        : `Error saving recipe: ${error.message}`;
+      setStatusMessage(errorMessage);
       setStatusType('error');
-    } else if (result) {
-      logger.log('AddRecipePage', 'Recipe processed successfully:', result);
-      setStatusMessage(result.message || 'Recipe processed and saved successfully!');
+    } else if (newRecipeResult) {
+      logger.log('AddRecipePage', 'Recipe saved successfully:', newRecipeResult);
+      setStatusMessage('Recipe saved successfully!');
+      setStatusType('success');
       setRecipeInput(''); // Clear the input field
       
-      // Refetch recipes in the background
       refetchRecipes(); 
 
-      // Navigate to the new recipe's detail page using the navigation utility
-      navigate(ROUTES.RECIPE_DETAIL(result.id));
+      // Navigate using the ID returned from the backend
+      if (newRecipeResult.id) {
+        navigate(ROUTES.RECIPE_DETAIL(newRecipeResult.id));
+      } else {
+        // Fallback if ID is missing in response (shouldn't happen)
+        navigate(ROUTES.HOME);
+      }
     }
 
     setIsLoading(false);
@@ -81,22 +96,23 @@ const AddRecipePage: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
+          <label htmlFor="recipeInput" className="block text-sm font-medium text-stone-700 mb-1">Recipe Data (JSON format)</label>
           <textarea
             id="recipeInput"
             value={recipeInput}
             onChange={(e) => setRecipeInput(e.target.value)}
-            rows={10}
-            className="mt-1 block w-full rounded-md border-stone-300 bg-white shadow-sm focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm px-3 py-2 placeholder:text-stone-500 text-stone-900"
-            placeholder="Enter Recipe URL or Paste Recipe Text..."
+            rows={15} // Increased rows for JSON
+            className="mt-1 block w-full rounded-md border-stone-300 bg-white shadow-sm focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm px-3 py-2 placeholder:text-stone-500 text-stone-900 font-mono" // Added font-mono
+            placeholder={'{ "title": "...", "main": "...", "other": [{ "name": "Ing Name", "quantity": 1, "unit": "cup" }, ...], "instructions": ["Step 1...", ...] }'} // More detailed placeholder
           />
         </div>
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !recipeInput.trim()}
           className="inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150 ease-in-out text-white bg-emerald-800 hover:bg-emerald-700 focus:ring-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Processing...' : 'Process Recipe'}
+          {isLoading ? 'Saving...' : 'Save Recipe'}
         </button>
       </form>
 

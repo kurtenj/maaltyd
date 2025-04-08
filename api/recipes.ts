@@ -1,159 +1,152 @@
-import { kv } from '@vercel/kv';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.development.local' }); // Load env vars for local dev
+
+// Use Upstash SDK
+import { Redis } from '@upstash/redis';
+// Remove @vercel/kv import
+// import { kv } from '@vercel/kv';
 import { z } from 'zod';
 import type { Recipe } from '../src/types/recipe';
+import { NextResponse } from 'next/server'; // Use NextResponse for consistency
 
-console.log('--- !!! api/recipes.ts TOP LEVEL EXECUTION !!! ---');
+// Initialize Redis client with proper URL prefixing
+const redisUrl = process.env.KV_REST_API_URL || '';
+const redisToken = process.env.KV_REST_API_TOKEN || '';
 
-const IngredientSchema = z.object({
-  name: z.string().min(1),
-  quantity: z.union([z.string(), z.number()]),
-  unit: z.string(),
+// Add a check immediately after initialization
+if (!redisUrl || !redisToken) {
+  console.error('CRITICAL: Redis URL or Token is missing from environment variables!');
+}
+
+// Initialize the Redis client properly
+const redis = new Redis({
+  url: redisUrl,  // Must be a complete URL
+  token: redisToken,
 });
 
+console.log(`[api/recipes.ts] Initializing Redis with URL: ${redisUrl ? redisUrl : 'MISSING!'}`);
+console.log('--- !!! api/recipes.ts TOP LEVEL EXECUTION (Explicit Redis Init) !!! ---');
+
+// --- Schemas ---
+const IngredientSchema = z.object({
+  name: z.string().min(1),
+  quantity: z.union([z.string().min(1), z.number()]), // Ensure string quantity isn't empty
+  unit: z.string().optional(), // Make unit optional
+});
+
+// Base Recipe Schema (used for validation on read and as base for create)
 const RecipeSchema = z.object({
+  id: z.string().min(1),
   title: z.string().min(1),
   main: z.string().min(1),
   other: z.array(IngredientSchema).min(1),
-  instructions: z.array(z.string()).min(1),
+  instructions: z.array(z.string().min(1)).min(1), // Ensure instructions aren't empty
 });
 
-// Key generation helper (Redefined here)
-const getRecipeKey = (id: string) => `recipe:${id}`;
+// Schema for validating data during creation (ID is generated, not provided)
+const RecipeCreateSchema = RecipeSchema.omit({ id: true });
+// --- End Schemas ---
 
-// Helper function to generate a simple slug
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-') // Replace spaces with -
-    .replace(/[^\w\-]+/g, '') // Remove all non-word chars except -
-    .replace(/\-\-+/g, '-'); // Replace multiple - with single -
-}
+const RECIPE_PREFIX = 'recipe:';
 
-export async function GET(_request: Request) {
-  const tokenPresent = !!process.env.KV_REST_API_TOKEN;
-  console.log(`[api/recipes]: GET request received. KV_REST_API_TOKEN present: ${tokenPresent}`);
+// --- GET Handler (List Recipes) ---
+export async function GET(_request: Request): Promise<NextResponse> {
+  console.log(`[api/recipes]: GET request received (using @upstash/redis).`);
 
-  if (!tokenPresent) {
-    console.error('[api/recipes]: KV environment variables seem missing!');
-    return new Response(JSON.stringify({ message: 'Server configuration error: Missing KV store credentials.' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  console.log('[api/recipes]: Attempting to get recipe keys from KV...');
+  console.log('[api/recipes]: Attempting to get recipe keys from Redis using SCAN...');
   try {
     const recipeKeys: string[] = [];
-    for await (const key of kv.scanIterator({ match: 'recipe:*' })) {
-      recipeKeys.push(key);
-    }
-    console.log(`[api/recipes]: Found ${recipeKeys.length} recipe keys.`);
+    let cursor: string | number = 0;
+    do {
+      const [nextCursorStr, keys] = await redis.scan(cursor as number, { match: `${RECIPE_PREFIX}*` });
+      recipeKeys.push(...keys);
+      cursor = nextCursorStr;
+    } while (cursor !== '0');
+
+    console.log(`[api/recipes]: Found ${recipeKeys.length} recipe keys via SCAN.`);
 
     if (recipeKeys.length === 0) {
-      return new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return NextResponse.json([]);
     }
 
     console.log(`[api/recipes]: Fetching ${recipeKeys.length} recipes using mget...`);
-    const recipesData = await kv.mget<Recipe[]>(...recipeKeys);
-    console.log(`[api/recipes]: Received ${recipesData.length} results from mget.`);
+    // Use redis.mget - returns array of results (data or null)
+    const recipesData = await redis.mget<Recipe[]>(...recipeKeys);
+    console.log(`[api/recipes]: Received ${recipesData ? recipesData.length : 'null'} results from mget.`);
 
-    const recipes: Recipe[] = recipesData.filter((recipe, index) => {
-      if (recipe === null) {
-        console.warn(`[api/recipes]: Got null for key ${recipeKeys[index]} during mget.`);
+    // Filter out nulls (recipes not found) and invalid data
+    const validRecipes = recipesData.filter(recipe => {
+      if (!recipe) return false;
+      const result = RecipeSchema.safeParse(recipe);
+      if (!result.success) {
+        console.warn(`[GET /api/recipes] Invalid recipe data found in Redis, skipping: ${JSON.stringify(recipe)}`, result.error.flatten());
         return false;
       }
-      const validationResult = RecipeSchema.safeParse(recipe);
-      if (!validationResult.success) {
-          console.warn(`[api/recipes]: Skipping invalid recipe from KV key ${recipeKeys[index]}:`, validationResult.error.errors);
-          return false;
-      }
       return true;
-    }) as Recipe[];
-
-    console.log(`[api/recipes]: Returning ${recipes.length} valid recipes.`);
-    return new Response(JSON.stringify(recipes), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
     });
+
+    console.log(`[api/recipes]: Returning ${validRecipes.length} valid recipes.`);
+    return NextResponse.json(validRecipes);
 
   } catch (error: unknown) {
-    console.error('[api/recipes]: Error getting recipes from KV:', error);
-    const message = error instanceof Error ? error.message : 'Failed to load recipes from KV.';
-    return new Response(JSON.stringify({ message, details: error instanceof Error ? error.stack : String(error) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error('[GET /api/recipes] Error fetching recipes:', error);
+    const message = error instanceof Error ? error.message : 'Failed to load recipes.';
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
 
-// --- POST Handler to Create New Recipes ---
-export async function POST(request: Request) {
-  console.log(`[api/recipes]: POST request received.`);
+// --- POST Handler (Create Recipe) ---
+export async function POST(request: Request): Promise<NextResponse> {
+  console.log(`[api/recipes]: POST request received (using @upstash/redis).`);
 
   let requestBody: unknown;
   try {
     requestBody = await request.json();
   } catch (error: unknown) {
     console.error(`[api/recipes POST]: Error parsing JSON body:`, error);
-    return new Response(JSON.stringify({ message: 'Invalid JSON in request body.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    return NextResponse.json({ message: 'Invalid JSON in request body.' }, { status: 400 });
   }
 
-  // 1. Validate incoming data (should NOT include ID)
-  const validationResult = RecipeSchema.safeParse(requestBody);
+  const validationResult = RecipeCreateSchema.safeParse(requestBody);
   if (!validationResult.success) {
     console.error('[api/recipes POST]: Recipe validation failed:', validationResult.error.flatten());
-    return new Response(JSON.stringify({ message: 'Invalid recipe data provided.', errors: validationResult.error.flatten() }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    return NextResponse.json(
+      { message: 'Invalid recipe data provided.', errors: validationResult.error.flatten() },
+      { status: 400 }
+    );
   }
 
-  // 2. Generate ID (slug from title)
   const validatedData = validationResult.data;
-  const newId = slugify(validatedData.title);
-  const key = getRecipeKey(newId); // Use the same key generation
+  const newId = Date.now().toString(); // Simple unique ID
+  const key = `${RECIPE_PREFIX}${newId}`;
 
-  console.log(`[api/recipes POST]: Generated key: ${key} for title: "${validatedData.title}"`);
+  console.log(`[api/recipes POST]: Generated unique ID: ${newId} and key: ${key}`);
 
-  // 3. Construct the full recipe object
-  const newRecipe: Recipe = {
+  const newRecipe = {
     ...validatedData,
-    id: newId, // Add the generated ID
-  };
+    id: newId,
+  } as Recipe; // Use type assertion to ensure it matches Recipe type
 
   try {
-    // 4. Optional but recommended: Check if key already exists to prevent overwrite
-    const existing = await kv.get(key);
-    if (existing !== null) {
-        console.warn(`[api/recipes POST]: Key ${key} already exists. Aborting creation.`);
-        return new Response(JSON.stringify({ message: `Recipe with ID '${newId}' already exists.` }), { status: 409, headers: { 'Content-Type': 'application/json' } }); // 409 Conflict
+    // Use redis.set with 'nx' option to only set if the key doesn't exist
+    console.log(`[api/recipes POST]: Saving new recipe to Redis key: ${key} (if not exists)`);
+    // redis.set returns the object if NX fails, null if NX succeeds
+    const setResult = await redis.set(key, newRecipe, { nx: true }); 
+    console.log(`[api/recipes POST]: redis.set nx result for key ${key}:`, setResult);
+
+    // If setResult is NOT null, it means the key already existed (NX failed)
+    if (setResult !== 'OK') { 
+      console.warn(`[POST /api/recipes] Key ${key} already exists (NX failed).`);
+      return NextResponse.json({ message: `Recipe with generated ID '${newId}' already exists.` }, { status: 409 });
     }
 
-    // 5. Save to KV
-    console.log(`[api/recipes POST]: Saving new recipe to KV key: ${key}`);
-    const setResult = await kv.set(key, newRecipe);
-    console.log(`[api/recipes POST]: kv.set result for key ${key}: ${setResult}`);
-
-    if (setResult !== 'OK') {
-      console.error(`[api/recipes POST]: kv.set failed for key ${key}, result: ${setResult}`);
-      throw new Error('Failed to save recipe to KV store.');
-    }
-
-    // 6. Return 201 Created with the new recipe data
-    return new Response(JSON.stringify(newRecipe), {
-      status: 201, // Created
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // If setResult is 'OK', the key was set successfully
+    return NextResponse.json(newRecipe, { status: 201 });
 
   } catch (error: unknown) {
-    console.error(`[api/recipes POST]: Error saving new recipe to KV for key ${key}:`, error);
-    const message = error instanceof Error ? error.message : 'Unknown error saving new recipe.';
-    return new Response(JSON.stringify({ message: `Server error: ${message}` }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error(`[POST /api/recipes] Error saving recipe to Redis for key ${key}:`, error);
+    const message = error instanceof Error ? error.message : 'Unknown error saving recipe.';
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
 

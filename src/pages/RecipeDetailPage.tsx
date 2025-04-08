@@ -66,14 +66,21 @@ const RecipeDetailPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!recipeId) return;
+    if (!recipe || !recipe.id) {
+      logger.error('RecipeDetailPage', 'Delete attempt failed: Recipe or Recipe ID not available.');
+      setEditError('Cannot delete recipe: Recipe data is missing.');
+      return;
+    }
 
     if (window.confirm('Are you sure you want to delete this recipe? This cannot be undone.')) {
       setIsDeleting(true);
       setEditError(null);
 
       const [, error] = await tryCatchAsync(
-        () => recipeApi.delete(recipeId),
+        () => {
+          logger.log('RecipeDetailPage', `Attempting to delete recipe with actual ID: ${recipe.id}`);
+          return recipeApi.delete(recipe.id);
+        },
         'RecipeDetailPage',
         'Failed to delete recipe'
       );
@@ -96,29 +103,37 @@ const RecipeDetailPage: React.FC = () => {
     setEditableRecipe(null);
     setDetailError(null);
     setIsFetchingDetails(true);
+
+    // Rename for clarity: this ID should now be the actual database ID from the URL
+    const actualRecipeIdFromUrl = params.recipeId; 
     
-    if (recipeId) {
-      // Try finding in the hook state first (quick load)
-      const initialData = allRecipes.find(r => r.id === recipeId);
+    if (actualRecipeIdFromUrl) {
+      logger.log('RecipeDetailPage', `useEffect: Found recipe ID in URL: ${actualRecipeIdFromUrl}`);
+      // Attempt 1: Find in the hook state using the ACTUAL ID
+      const initialData = allRecipes.find(r => r.id === actualRecipeIdFromUrl);
       if (initialData) {
+        logger.log('RecipeDetailPage', `useEffect: Found recipe in pre-loaded list (ID: ${initialData.id})`);
         setRecipe(initialData);
         setEditableRecipe(JSON.parse(JSON.stringify(initialData)));
         setIsFetchingDetails(false);
       } else {
-        // If not found in hook state, fetch directly
+        logger.log('RecipeDetailPage', `useEffect: Recipe not found in pre-loaded list, fetching directly using ID: ${actualRecipeIdFromUrl}`);
+        // Attempt 2: If not found in hook state, fetch directly using the ACTUAL ID
         const fetchRecipe = async () => {
           const [data, error] = await tryCatchAsync(
-            () => recipeApi.getById(recipeId),
+            () => recipeApi.getById(actualRecipeIdFromUrl), // Use the actual ID for fetching
             'RecipeDetailPage',
             'Failed to load recipe details'
           );
           
           if (error) {
+            logger.error('RecipeDetailPage', `useEffect: Error fetching recipe details for ID ${actualRecipeIdFromUrl}:`, error);
             setDetailError(error.message);
             setRecipe(null);
             setEditableRecipe(null);
           } else if (data) {
-            setRecipe(data);
+            logger.log('RecipeDetailPage', `useEffect: Successfully fetched recipe details (ID: ${data.id})`);
+            setRecipe(data); // Should have the correct ID now
             setEditableRecipe(JSON.parse(JSON.stringify(data)));
             setDetailError(null);
           }
@@ -130,10 +145,11 @@ const RecipeDetailPage: React.FC = () => {
       }
     } else {
       // No recipeId present
+      logger.warn('RecipeDetailPage', 'useEffect: No recipe ID found in URL parameters.');
       setIsFetchingDetails(false);
       setDetailError('No recipe ID provided.');
     }
-  }, [recipeId, allRecipes]);
+  }, [params.recipeId, allRecipes]); // Depend on params.recipeId
 
   // --- Render Logic ---
   // Combined loading state

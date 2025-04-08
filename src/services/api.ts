@@ -51,7 +51,7 @@ export const recipeApi = {
    * Get single recipe by ID
    */
   async getById(id: string): Promise<Recipe> {
-    const response = await fetch(`/api/recipes/${id}`, NO_CACHE_OPTIONS);
+    const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, NO_CACHE_OPTIONS);
     return handleApiResponse<Recipe>(response);
   },
   
@@ -76,7 +76,7 @@ export const recipeApi = {
    * Update existing recipe
    */
   async update(id: string, recipe: Recipe): Promise<Recipe> {
-    const response = await fetch(`/api/recipes/${id}`, {
+    const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'PUT',
       headers: {
@@ -93,7 +93,7 @@ export const recipeApi = {
    * Delete recipe
    */
   async delete(id: string): Promise<void> {
-    const response = await fetch(`/api/recipes/${id}`, {
+    const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'DELETE',
     });
