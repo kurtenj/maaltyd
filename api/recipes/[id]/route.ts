@@ -1,10 +1,16 @@
-import { head } from '@vercel/blob';
+// Imports for KV
+import { kv } from '@vercel/kv'; 
+// Remove blob imports
+// import { head } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-// Remove Recipe type import as it's not directly used here
-// import type { Recipe } from '../../../src/types/recipe';
+// Restore Recipe type import
+import type { Recipe } from '../../../src/types/recipe';
 // Import the action and custom error
-import { deleteRecipeAction, updateRecipeAction, RecipeNotFoundError } from '../../lib/recipeActions';
+import { deleteRecipeAction, updateRecipeAction } from '../../lib/recipeActions';
+
+// Key generation helper (can be shared or redefined)
+const getRecipeKey = (id: string) => `recipe:${id}`;
 
 // Zod schema for Ingredient (needed for Recipe validation)
 const IngredientSchema = z.object({
@@ -39,72 +45,45 @@ export async function GET(request: Request, { params }: RouteParams) {
     console.error('[GET /api/recipes/[id]] Error: ID parameter is missing.');
     return NextResponse.json({ message: 'Recipe ID is required.' }, { status: 400 });
   }
-
   const id = params.id;
-  const blobPathname = `recipes/${id}.json`;
-  console.log(`[GET /api/recipes/[id]] Constructed blobPathname: ${blobPathname}`);
+  const key = getRecipeKey(id);
+  console.log(`[GET /api/recipes/[id]] Constructed KV key: ${key}`);
 
   try {
-    // 1. Check if blob exists
-    console.log(`[GET /api/recipes/[id]] Checking existence with head(${blobPathname})...`);
-    const blobInfo = await head(blobPathname); // Throws if not found
-    console.log(`[GET /api/recipes/[id]] Blob found. URL: ${blobInfo.url}`);
+    // 1. Fetch data directly from KV
+    console.log(`[GET /api/recipes/[id]] Fetching recipe from KV with key: ${key}...`);
+    // Specify expected type for kv.get<Recipe>
+    const recipeData = await kv.get<Recipe>(key); 
+    console.log(`[GET /api/recipes/[id]] Data received from KV:`, recipeData ? `Recipe title: ${recipeData.title}` : 'null');
 
-    // 2. Fetch blob content
-    console.log(`[GET /api/recipes/[id]] Fetching content from ${blobInfo.url}...`);
-    const response = await fetch(blobInfo.url);
-
-    if (!response.ok) {
-      console.error(`[GET /api/recipes/[id]] Error fetching blob content. Status: ${response.status}`);
-      throw new Error(`Failed to fetch recipe data. Status: ${response.status}`);
+    // 2. Check if data exists
+    if (recipeData === null) {
+      console.log(`[GET /api/recipes/[id]] Recipe not found in KV for key: ${key}`);
+      return NextResponse.json({ message: 'Recipe not found.' }, { status: 404 });
     }
 
-    // 3. Parse JSON
-    console.log(`[GET /api/recipes/[id]] Parsing JSON response...`);
-    const recipeData = await response.json();
-
-    // 4. Validate schema
-    console.log(`[GET /api/recipes/[id]] Validating recipe data against schema...`);
+    // 3. Optional: Validate data read from KV (good practice)
+    // Although data *should* be valid if saved correctly, this adds robustness
     const validationResult = RecipeSchema.safeParse(recipeData);
-
     if (!validationResult.success) {
-      console.error('[GET /api/recipes/[id]] Schema validation failed:', validationResult.error.errors);
-      throw new Error('Recipe data from storage is invalid.');
+      console.error('[GET /api/recipes/[id]] Invalid data found in KV:', validationResult.error.flatten());
+      // Decide how to handle - return error or maybe try to fix/ignore?
+      return NextResponse.json({ message: 'Recipe data retrieved from storage is invalid.' }, { status: 500 });
     }
-    console.log(`[GET /api/recipes/[id]] Validation successful.`);
+    console.log(`[GET /api/recipes/[id]] Validation of KV data successful.`);
 
-    // 5. Return validated data (adding the id back)
-    const recipeWithId = { ...validationResult.data, id: id };
-    return NextResponse.json(recipeWithId, { status: 200 });
+    // 4. Return the data
+    // Ensure the ID is present (kv.set in action adds it)
+    return NextResponse.json(validationResult.data, { status: 200 });
 
   } catch (error: unknown) {
-    // Log the raw error for diagnostics
-    console.error('[GET /api/recipes/[id]] Caught error:', error);
-
-    // Check specifically for BlobNotFoundError from head()
-    // Need to check the error structure/message Vercel Blob throws
-    if (error instanceof Error && (error.name === 'BlobNotFoundError' || error.message.includes('The requested blob does not exist'))) {
-        console.log('[GET /api/recipes/[id]] Caught BlobNotFoundError, returning 404.');
-        return NextResponse.json({ message: 'Recipe not found.' }, { status: 404 });
-    }
-
-    // Handle other errors
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
-    console.error(`[GET /api/recipes/[id]] Returning 500: ${message}`);
+    console.error(`[GET /api/recipes/[id]] Error fetching recipe from KV for key ${key}:`, error);
+    const message = error instanceof Error ? error.message : 'An unexpected error occurred while fetching the recipe.';
     return NextResponse.json({ message: `Server error: ${message}` }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
-  // --- TEMPORARY TEST --- 
-  const url = new URL(request.url);
-  const pathSegments = url.pathname.split('/');
-  const id = pathSegments[pathSegments.length - 1]; 
-  console.log(`--- !!! DELETE /api/recipes/${id} ROUTE HANDLER REACHED (TEMP TEST) !!! ---`);
-  return new NextResponse(null, { status: 204 }); 
-  // --- END TEMP TEST ---
-/*
-  // Original code commented out:
   const url = new URL(request.url);
   const pathSegments = url.pathname.split('/');
   const id = pathSegments[pathSegments.length - 1]; 
@@ -121,22 +100,19 @@ export async function DELETE(request: Request) {
   try {
     await deleteRecipeAction(id);
     console.log(`[Route] deleteRecipeAction completed successfully for id: ${id}`);
+    // kv.del doesn't error on non-existent key, so we always return 204 if action succeeds
     return new NextResponse(null, { status: 204 }); 
 
   } catch (error: unknown) {
     console.error(`[Route] Error calling deleteRecipeAction for id ${id}:`, error);
 
-    if (error instanceof RecipeNotFoundError) {
-        return NextResponse.json({ message: error.message }, { status: 404 });
-    }
-    
+    // Handle other potential errors from kv.del
     const message = error instanceof Error ? error.message : 'Unknown server error during deletion.';
     return NextResponse.json(
       { message: 'Server error deleting recipe.', error: message },
       { status: 500 } 
     );
   }
-*/
 }
 
 export async function PUT(request: Request) {

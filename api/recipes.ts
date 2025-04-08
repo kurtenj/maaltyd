@@ -1,4 +1,4 @@
-import { list } from '@vercel/blob';
+import { kv } from '@vercel/kv';
 import { z } from 'zod';
 import type { Recipe } from '../src/types/recipe';
 
@@ -18,54 +18,48 @@ const RecipeSchema = z.object({
 });
 
 export async function GET(_request: Request) {
-  const tokenPresent = !!process.env.BLOB_READ_WRITE_TOKEN;
-  const tokenLength = process.env.BLOB_READ_WRITE_TOKEN?.length || 0;
-  console.log(`[api/recipes]: GET request received. BLOB_READ_WRITE_TOKEN present: ${tokenPresent}, Length: ${tokenLength}`);
+  const tokenPresent = !!process.env.KV_REST_API_TOKEN;
+  console.log(`[api/recipes]: GET request received. KV_REST_API_TOKEN present: ${tokenPresent}`);
 
   if (!tokenPresent) {
-    console.error('[api/recipes]: BLOB_READ_WRITE_TOKEN is missing!');
-    return new Response(JSON.stringify({ message: 'Server configuration error: Missing blob storage token.' }), {
+    console.error('[api/recipes]: KV environment variables seem missing!');
+    return new Response(JSON.stringify({ message: 'Server configuration error: Missing KV store credentials.' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  console.log('[api/recipes]: Attempting to list blobs...');
+  console.log('[api/recipes]: Attempting to get recipe keys from KV...');
   try {
-    const { blobs } = await list({
-      prefix: 'recipes/'
-    });
-
-    console.log(`[api/recipes]: Found ${blobs.length} blobs in recipes/ prefix.`);
-
-    const recipes: Recipe[] = [];
-
-    for (const blob of blobs) {
-      try {
-        console.log(`[api/recipes]: Fetching content for ${blob.pathname}`);
-        const response = await fetch(blob.url); 
-        if (!response.ok) {
-            console.warn(`[api/recipes]: Failed to fetch blob content for ${blob.pathname}, status: ${response.status}`);
-            continue; 
-        }
-        const recipeData = await response.json();
-
-        const validationResult = RecipeSchema.safeParse(recipeData);
-        if (!validationResult.success) {
-            console.warn(`[api/recipes]: Skipping invalid recipe blob ${blob.pathname}:`, validationResult.error.errors);
-            continue; 
-        }
-
-        const recipeId = blob.pathname.split('/').pop()?.replace('.json', '') || 'unknown';
-        
-        recipes.push({
-          ...validationResult.data, 
-          id: recipeId 
-        } as Recipe);
-      } catch (fetchError: unknown) {
-          console.error(`[api/recipes]: Error fetching or parsing blob ${blob.pathname}:`, fetchError);
-      }
+    const recipeKeys: string[] = [];
+    for await (const key of kv.scanIterator({ match: 'recipe:*' })) {
+      recipeKeys.push(key);
     }
+    console.log(`[api/recipes]: Found ${recipeKeys.length} recipe keys.`);
+
+    if (recipeKeys.length === 0) {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[api/recipes]: Fetching ${recipeKeys.length} recipes using mget...`);
+    const recipesData = await kv.mget<Recipe[]>(...recipeKeys);
+    console.log(`[api/recipes]: Received ${recipesData.length} results from mget.`);
+
+    const recipes: Recipe[] = recipesData.filter((recipe, index) => {
+      if (recipe === null) {
+        console.warn(`[api/recipes]: Got null for key ${recipeKeys[index]} during mget.`);
+        return false;
+      }
+      const validationResult = RecipeSchema.safeParse(recipe);
+      if (!validationResult.success) {
+          console.warn(`[api/recipes]: Skipping invalid recipe from KV key ${recipeKeys[index]}:`, validationResult.error.errors);
+          return false;
+      }
+      return true;
+    }) as Recipe[];
 
     console.log(`[api/recipes]: Returning ${recipes.length} valid recipes.`);
     return new Response(JSON.stringify(recipes), {
@@ -74,8 +68,8 @@ export async function GET(_request: Request) {
     });
 
   } catch (error: unknown) {
-    console.error('[api/recipes]: Error listing blobs:', error);
-    const message = error instanceof Error ? error.message : 'Failed to load recipes.';
+    console.error('[api/recipes]: Error getting recipes from KV:', error);
+    const message = error instanceof Error ? error.message : 'Failed to load recipes from KV.';
     return new Response(JSON.stringify({ message, details: error instanceof Error ? error.stack : String(error) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
