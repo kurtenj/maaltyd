@@ -10,78 +10,131 @@ import { tryCatchAsync } from '../utils/errorHandling';
 import { ROUTES } from '../utils/navigation';
 // Import the Recipe type
 import type { Recipe } from '../types/recipe';
+import RecipeForm from '../components/RecipeForm';
 
+/**
+ * Add Recipe Page with URL scraping functionality
+ */
 const AddRecipePage: React.FC = () => {
-  const [recipeInput, setRecipeInput] = useState(''); // Expect JSON string here
-  const [isLoading, setIsLoading] = useState(false);
+  // State for URL input and processing
+  const [recipeUrl, setRecipeUrl] = useState('');
+  const [isScrapingUrl, setIsScrapingUrl] = useState(false);
+  
+  // State for imported recipe
+  const [importedRecipe, setImportedRecipe] = useState<Omit<Recipe, 'id'> | null>(null);
+  const defaultRecipe: Omit<Recipe, 'id'> = {
+    title: '',
+    main: '',
+    other: [{ name: '', quantity: '', unit: '' }],
+    instructions: ['']
+  };
+  
+  // State for form/saving
+  const [isCreating, setIsCreating] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'error' | 'success'>('success');
+  
   const navigate = useNavigate();
   const { refetchRecipes } = useRecipes();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  /**
+   * Handle importing recipe from URL
+   */
+  const handleImportFromUrl = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
-    setStatusMessage(null);
-    setStatusType('success');
     
-    let parsedData: any;
-
-    // 1. Parse the input as JSON
-    try {
-      parsedData = JSON.parse(recipeInput);
-      logger.log('AddRecipePage', 'Parsed recipe JSON');
-    } catch (parseError: unknown) {
-      logger.error('AddRecipePage', 'Invalid JSON input:', parseError);
-      setStatusMessage(`Error: Invalid JSON format. Please paste valid recipe JSON. Error: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    if (!recipeUrl.trim()) {
+      setStatusMessage('Please enter a valid recipe URL');
       setStatusType('error');
-      setIsLoading(false);
       return;
     }
+    
+    setIsScrapingUrl(true);
+    setStatusMessage('Importing recipe from URL...');
+    setStatusType('success');
+    
+    try {
+      const response = await fetch('/api/scrape-recipe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: recipeUrl }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Error importing recipe: ${response.statusText}`);
+      }
+      
+      const recipeData = await response.json();
+      logger.log('AddRecipePage', 'Recipe data scraped from URL:', recipeData);
+      
+      // Set the imported recipe to display in the form
+      setImportedRecipe(recipeData);
+      setStatusMessage('Recipe imported! Review and make any changes before saving.');
+      setStatusType('success');
+      
+      // Clear the URL field
+      setRecipeUrl('');
+    } catch (error) {
+      logger.error('AddRecipePage', 'Error importing recipe from URL:', error);
+      setStatusMessage(`Failed to import recipe: ${error instanceof Error ? error.message : String(error)}`);
+      setStatusType('error');
+    } finally {
+      setIsScrapingUrl(false);
+    }
+  };
 
-    // Assert the type before passing to the API
-    // Use Omit<Recipe, 'id'> as the expected type for creation
-    const recipeDataForApi = parsedData as Omit<Recipe, 'id'>;
+  /**
+   * Handle saving the recipe
+   */
+  const handleSaveRecipe = async (recipeToSave: Recipe | Omit<Recipe, 'id'>): Promise<void> => {
+    setIsCreating(true);
+    setStatusMessage(null);
+    
+    // Remove any existing ID as we're creating a new recipe
+    // This handles cases where a Recipe type might be passed with an id
+    const { id, ...recipeWithoutId } = recipeToSave as any;
+    
+    logger.log('AddRecipePage', 'Saving recipe:', recipeWithoutId);
 
-    // 2. Define function to call POST /api/recipes
-    const createRecipe = async () => {
-      const newRecipe = await recipeApi.create(recipeDataForApi);
-      return newRecipe;
-    };
-
-    // 3. Call the create function with error handling
     const [newRecipeResult, error] = await tryCatchAsync(
-      createRecipe,
+      () => recipeApi.create(recipeWithoutId),
       'AddRecipePage',
-      'Failed to save recipe' // Generic error message
+      'Failed to save recipe'
     );
 
     if (error) {
       logger.error('AddRecipePage', 'Error submitting recipe:', error);
-      // Check for specific conflict error from the API
       const errorMessage = (error instanceof Error && error.message.includes('already exists')) 
         ? error.message 
         : `Error saving recipe: ${error.message}`;
       setStatusMessage(errorMessage);
       setStatusType('error');
+      setIsCreating(false);
     } else if (newRecipeResult) {
       logger.log('AddRecipePage', 'Recipe saved successfully:', newRecipeResult);
-      setStatusMessage('Recipe saved successfully!');
-      setStatusType('success');
-      setRecipeInput(''); // Clear the input field
       
-      refetchRecipes(); 
+      // Reset form state
+      setImportedRecipe(null);
+      refetchRecipes();
 
-      // Navigate using the ID returned from the backend
+      // Navigate to the recipe detail page
       if (newRecipeResult.id) {
         navigate(ROUTES.RECIPE_DETAIL(newRecipeResult.id));
       } else {
-        // Fallback if ID is missing in response (shouldn't happen)
         navigate(ROUTES.HOME);
       }
     }
+  };
 
-    setIsLoading(false);
+  /**
+   * Handle canceling the form
+   */
+  const handleCancel = () => {
+    setImportedRecipe(null);
+    setStatusMessage(null);
   };
 
   return (
@@ -94,30 +147,67 @@ const AddRecipePage: React.FC = () => {
       </Link>
       <h1 className="text-3xl font-bold mb-6 text-stone-900">Add New Recipe</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="recipeInput" className="block text-sm font-medium text-stone-700 mb-1">Recipe Data (JSON format)</label>
-          <textarea
-            id="recipeInput"
-            value={recipeInput}
-            onChange={(e) => setRecipeInput(e.target.value)}
-            rows={15} // Increased rows for JSON
-            className="mt-1 block w-full rounded-md border-stone-300 bg-white shadow-sm focus:ring-2 focus:ring-inset focus:ring-emerald-600 sm:text-sm px-3 py-2 placeholder:text-stone-500 text-stone-900 font-mono" // Added font-mono
-            placeholder={'{ "title": "...", "main": "...", "other": [{ "name": "Ing Name", "quantity": 1, "unit": "cup" }, ...], "instructions": ["Step 1...", ...] }'} // More detailed placeholder
+      {/* Show URL import section only when not editing a recipe */}
+      {!importedRecipe && (
+        <div className="mb-8 p-4 bg-stone-50 rounded-lg border border-stone-200">
+          <h2 className="text-xl font-semibold mb-3 text-stone-900">Import from URL</h2>
+          <form onSubmit={handleImportFromUrl} className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="url"
+                placeholder="Paste recipe URL here..."
+                className="flex-grow rounded-md border-stone-300 shadow-sm focus:ring-2 focus:ring-inset focus:ring-emerald-600 px-3 py-2"
+                value={recipeUrl}
+                onChange={(e) => setRecipeUrl(e.target.value)}
+                disabled={isScrapingUrl}
+              />
+              <button
+                type="submit"
+                disabled={isScrapingUrl || !recipeUrl.trim()}
+                className="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isScrapingUrl ? 'Importing...' : 'Import Recipe'}
+              </button>
+            </div>
+            <p className="text-xs text-stone-500">
+              Paste the URL of a recipe page to automatically extract the recipe data.
+              Note: This feature works best with recipe sites that use structured data.
+            </p>
+          </form>
+          
+          <div className="mt-4 border-t border-stone-200 pt-4">
+            <h3 className="text-lg font-medium mb-2 text-stone-900">Or create a recipe manually</h3>
+            <button
+              type="button"
+              onClick={() => setImportedRecipe(defaultRecipe)}
+              className="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
+            >
+              Create New Recipe
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Show the recipe form when we have an imported recipe */}
+      {importedRecipe && (
+        <div className="bg-white p-6 rounded-lg shadow-md border border-stone-200">
+          <h2 className="text-xl font-semibold mb-4 text-stone-900">Edit Recipe Details</h2>
+          <RecipeForm
+            initialRecipe={{ ...importedRecipe, id: 'temp-id' }} // Provide a temp ID since RecipeForm expects the full Recipe type
+            onSave={handleSaveRecipe}
+            onCancel={handleCancel}
+            isSaving={isCreating}
+            isDeleting={false}
+            error={statusType === 'error' ? statusMessage : null}
           />
         </div>
+      )}
 
-        <button
-          type="submit"
-          disabled={isLoading || !recipeInput.trim()}
-          className="inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150 ease-in-out text-white bg-emerald-800 hover:bg-emerald-700 focus:ring-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Saving...' : 'Save Recipe'}
-        </button>
-      </form>
-
-      {statusMessage && (
-        <div className={`mt-4 p-3 rounded text-center ${statusType === 'error' ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-green-100 text-green-800 border border-green-300'}`}>
+      {/* Display status messages only when not showing the form and a message exists */}
+      {!importedRecipe && statusMessage && (
+        <div className={`mt-4 p-3 rounded text-center ${
+          statusType === 'error' ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-green-100 text-green-800 border border-green-300'
+        }`}>
           {statusMessage}
         </div>
       )}
