@@ -17,9 +17,9 @@ const Header: React.FC = () => {
         <div className="flex space-x-2">
           <Link 
             to={ROUTES.ADD_RECIPE} 
-            className="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
+            className="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-3 md:px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
           >
-             New Recipe
+             New<span className="hidden md:inline">&nbsp;Recipe</span>
           </Link>
           <Link 
             to={ROUTES.MEAL_PLAN} // Assuming MEAL_PLAN route is defined

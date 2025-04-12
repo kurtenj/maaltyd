@@ -6,8 +6,8 @@ import ShoppingListComponent from '../components/ShoppingListComponent'; // Impo
 import Button from '../components/Button'; // Import the Button component
 import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 
-// Array to map index to day name
-const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+// Array to map index to day name (ABBREVIATED)
+const dayNames = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 const MealPlanPage: React.FC = () => {
   const {
@@ -76,13 +76,14 @@ const MealPlanPage: React.FC = () => {
                   key={`${recipe.id}-${index}-${dayNames[index]}`}
                   className="flex items-center justify-between py-2 border-b border-stone-100 last:border-b-0"
                 >
-                  <div className="flex-1 flex items-center">
-                    <span className="w-24 font-medium text-stone-500 mr-4">
+                  <div className="flex-1 flex items-center min-w-0">
+                    <span className="w-12 font-medium text-stone-500 mr-3 text-xs uppercase tracking-wider">
                       {dayNames[index]}
                     </span>
                     <Link 
                       to={ROUTES.RECIPE_DETAIL(recipe.id)} 
-                      className="text-emerald-800 hover:text-emerald-600 hover:underline flex-grow"
+                      className="text-emerald-800 hover:text-emerald-600 hover:underline flex-grow truncate"
+                      title={recipe.title}
                     >
                       {recipe.title}
                     </Link>
