@@ -10,10 +10,10 @@ const DUMMY_RECIPES: Recipe[] = [
     id: 'dummy-1',
     title: 'Placeholder Recipe Card',
     main: 'Test Ingredient',
-    other: [ // Updated to Ingredient[]
+    other: [
       { name: 'Dummy Data', quantity: 1, unit: 'item' }, 
-      { name: 'Local Dev', quantity: 'some', unit: '' },
-      { name: 'Water', quantity: '1/2', unit: 'cup' }
+      { name: 'Local Dev', quantity: 1, unit: '' },
+      { name: 'Water', quantity: 0.5, unit: 'cup' }
     ],
     instructions: ['This is placeholder data because the local API fetch failed.', 'Check vercel dev logs.']
   },
@@ -21,9 +21,9 @@ const DUMMY_RECIPES: Recipe[] = [
     id: 'dummy-2',
     title: 'Another Placeholder Card',
     main: 'Placeholder',
-    other: [ // Updated to Ingredient[]
+    other: [
       { name: 'Testing', quantity: 2, unit: 'units' }, 
-      { name: 'UI Layout', quantity: '' , unit: '' } 
+      { name: 'UI Layout', quantity: 1 , unit: '' }
     ],
     instructions: ['This appears when /api/recipes fails locally.']
   }
@@ -44,7 +44,7 @@ export function useRecipes() {
     logger.log('useRecipes', 'Fetching recipes from API...');
     setIsLoading(true);
     setError(null);
-    setFetchAttempted(true); // Mark that we tried fetching
+    setFetchAttempted(true);
     
     const [data, apiError] = await tryCatchAsync(
       async () => await recipeApi.getAll(),
@@ -55,11 +55,13 @@ export function useRecipes() {
     if (apiError) {
       logger.error('useRecipes', 'Error fetching recipes:', apiError);
       setError(apiError.message);
-      setAllRecipes(DUMMY_RECIPES); // Use dummy data on error
+      setAllRecipes(DUMMY_RECIPES);
       logger.warn('useRecipes', 'Fetch failed, using dummy data.');
     } else if (data) {
       setAllRecipes(data);
-      logger.log('useRecipes', `Successfully fetched ${data.length} recipes.`);
+      logger.log('useRecipes', `Successfully fetched ${data.length} recipes (state set).`);
+    } else {
+       setAllRecipes([]);
     }
     
     setIsLoading(false);

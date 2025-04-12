@@ -29,20 +29,28 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   }, [initialRecipe]);
   
   // --- Helper functions for Edit Mode ---
-  const handleIngredientChange = (index: number, field: keyof Ingredient, value: string | number) => {
+  const handleIngredientChange = (index: number, field: keyof Omit<Ingredient, 'id'>, value: string) => {
     const updatedIngredients = [...recipe.other];
+    let processedValue: string | number = value;
+
+    // Attempt to parse quantity as a number
+    if (field === 'quantity') {
+      const num = parseFloat(value);
+      // Keep as number if valid, otherwise fallback to 0 (or handle error)
+      processedValue = isNaN(num) ? 0 : num; 
+    }
+    
     updatedIngredients[index] = { 
-      ...updatedIngredients[index], 
-      [field]: value 
+        ...updatedIngredients[index], 
+        [field]: processedValue 
     };
     setRecipe({ ...recipe, other: updatedIngredients });
   };
 
   const addIngredient = () => {
-    const newIngredient: Ingredient = { name: '', quantity: '', unit: '' };
     setRecipe({ 
-      ...recipe, 
-      other: [...recipe.other, newIngredient] 
+        ...recipe, 
+        other: [...recipe.other, { name: '', quantity: 1, unit: '' }] // Default new quantity to 1
     });
   };
 
@@ -116,12 +124,14 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
           {recipe.other.map((ingredient, index) => (
             <div key={index} className="flex flex-wrap items-center space-x-2 p-2 border border-stone-200 rounded">
               <input 
-                type="text" 
+                type="number"
+                step="any"
                 placeholder="Qty" 
-                value={ingredient.quantity}
+                value={ingredient.quantity === 0 ? '' : ingredient.quantity}
                 onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
-                className="w-16 px-2 py-1 border border-stone-300 rounded-md shadow-sm sm:text-sm text-stone-900"
+                className="w-20 px-2 py-1 border border-stone-300 rounded-md shadow-sm sm:text-sm text-stone-900"
                 disabled={isSaving || isDeleting}
+                required
               />
               <input 
                 type="text" 

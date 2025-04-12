@@ -20,10 +20,10 @@ const ScrapeRequestSchema = z.object({
   url: z.string().url()
 });
 
-// Recipe schema for validation
+// Recipe schema for validation (using number for quantity)
 const IngredientSchema = z.object({
   name: z.string().min(1),
-  quantity: z.union([z.string().min(1), z.number()]),
+  quantity: z.number().positive(), // Ensure quantity is a positive number
   unit: z.string().optional(),
 });
 
@@ -94,20 +94,76 @@ export async function POST(request: Request): Promise<NextResponse> {
       instructions: Array.isArray(processedRecipe.instructions) ? processedRecipe.instructions : []
     };
 
-    // Filter out any empty or invalid ingredients before validation
+    // Sanitize and PARSE quantities before validation
     if (sanitizedRecipe.other) {
       sanitizedRecipe.other = sanitizedRecipe.other
         .filter(ingredient => ingredient && typeof ingredient === 'object')
-        .map(ingredient => ({
-          name: typeof ingredient.name === 'string' ? ingredient.name.trim() : 'Ingredient',
-          quantity: ingredient.quantity || '1',
-          unit: typeof ingredient.unit === 'string' ? ingredient.unit.trim() : ''
-        }))
+        .map(ingredient => {
+          const name = typeof ingredient.name === 'string' ? ingredient.name.trim() : 'Ingredient';
+          const unit = typeof ingredient.unit === 'string' ? ingredient.unit.trim() : '';
+          
+          // Attempt to parse quantity, default to 1 if invalid/missing
+          let quantity = 1; // Default quantity
+          if (ingredient.quantity !== null && ingredient.quantity !== undefined) {
+            // Explicitly check if it's a string before using string methods
+            if (typeof ingredient.quantity === 'string') {
+               const quantityString = ingredient.quantity as string; // Assert as string
+               // Basic fraction handling (e.g., "1/2")
+               if (quantityString.includes('/')) {
+                   const parts = quantityString.split('/');
+                   if (parts.length === 2) {
+                       const num = parseFloat(parts[0]);
+                       const den = parseFloat(parts[1]);
+                       if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                           quantity = num / den;
+                       } else {
+                            console.warn(`[api/scrape-recipe] Invalid fraction: ${ingredient.quantity}, using 1`);
+                            quantity = 1; // Fallback for invalid fraction
+                       }
+                   } else {
+                        console.warn(`[api/scrape-recipe] Invalid fraction format: ${ingredient.quantity}, using 1`);
+                        quantity = 1;
+                   }
+               } else {
+                   const parsed = parseFloat(quantityString);
+                   if (!isNaN(parsed)) {
+                       quantity = parsed;
+                   }
+                }
+            } else if (typeof ingredient.quantity === 'number') {
+                // Handle if it's already a number
+                 const parsed = parseFloat(String(ingredient.quantity));
+                 if (!isNaN(parsed)) {
+                    quantity = parsed;
+                 }
+            }
+          }
+          
+          // Ensure quantity is positive
+          quantity = Math.max(0.01, quantity); // Ensure at least a small positive number
+          
+          return { name, quantity, unit };
+        })
         .filter(ingredient => ingredient.name.length > 0);
       
       // Ensure we have at least one ingredient
       if (sanitizedRecipe.other.length === 0) {
-        sanitizedRecipe.other = [{ name: 'Main ingredient (please edit)', quantity: '1', unit: '' }];
+        sanitizedRecipe.other = [{ name: 'Main ingredient (please edit)', quantity: 1, unit: '' }];
+      }
+    }
+
+    // Ensure the main ingredient is also in the 'other' list if not present
+    if (sanitizedRecipe.main && sanitizedRecipe.main !== 'Main Ingredient' && Array.isArray(sanitizedRecipe.other)) {
+      const mainIngredientNameLower = sanitizedRecipe.main.toLowerCase().trim();
+      const mainExistsInOther = sanitizedRecipe.other.some(ing => ing.name.toLowerCase().trim() === mainIngredientNameLower);
+      
+      if (!mainExistsInOther) {
+        console.log(`[api/scrape-recipe]: Adding main ingredient '${sanitizedRecipe.main}' to 'other' list.`);
+        sanitizedRecipe.other.push({
+          name: sanitizedRecipe.main, // Use the original casing for the name
+          quantity: 1, // Default quantity
+          unit: '' // Default unit
+        });
       }
     }
 
@@ -122,9 +178,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     }
 
-    console.log('[api/scrape-recipe]: Sanitized recipe data:', JSON.stringify(sanitizedRecipe));
+    console.log('[api/scrape-recipe]: Sanitized recipe data (numeric quantities, main added to other):', JSON.stringify(sanitizedRecipe));
 
-    // Step 4: Validate the sanitized recipe against our schema
+    // Step 4: Validate the sanitized recipe against our schema (which now expects number)
     const validationResult = RecipeSchema.safeParse(sanitizedRecipe);
     if (!validationResult.success) {
       console.error('[api/scrape-recipe]: Recipe validation failed:', validationResult.error.flatten());
@@ -306,7 +362,7 @@ async function processRecipeWithOpenAI(recipeText: string, prompt: string): Prom
       }
       
       if (!Array.isArray(parsedData.other) || parsedData.other.length === 0) {
-        parsedData.other = [{ name: 'Ingredient (please edit)', quantity: '1', unit: '' }];
+        parsedData.other = [{ name: 'Ingredient (please edit)', quantity: 1, unit: '' }];
       }
       
       if (!Array.isArray(parsedData.instructions) || parsedData.instructions.length === 0) {

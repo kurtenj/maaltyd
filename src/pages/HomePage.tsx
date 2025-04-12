@@ -51,7 +51,13 @@ const HomePage: React.FC = () => {
             selectedOtherIngredients={selectedOtherIngredients}
             onOtherIngredientToggle={toggleOtherIngredient}
           />
-          <RecipeList recipes={filteredRecipes} selectedMainIngredient={selectedMainIngredient} />
+          {/* Recipe List Display */}
+          {!isLoading && !error && (
+            <RecipeList 
+              recipes={filteredRecipes} 
+              selectedMainIngredient={selectedMainIngredient} 
+            />
+          )}
         </>
       )}
       </div>

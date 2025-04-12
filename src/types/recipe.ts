@@ -1,6 +1,6 @@
 export interface Ingredient {
   name: string;
-  quantity: string | number; // Allow flexibility (e.g., "1", 1, "1/2", "to taste")
+  quantity: number; // Enforce numeric quantity
   unit?: string; // Make unit optional here too
 }
 

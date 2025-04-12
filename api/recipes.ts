@@ -30,8 +30,8 @@ console.log('--- !!! api/recipes.ts TOP LEVEL EXECUTION (Explicit Redis Init) !!
 // --- Schemas ---
 const IngredientSchema = z.object({
   name: z.string().min(1),
-  quantity: z.union([z.string().min(1), z.number()]), // Ensure string quantity isn't empty
-  unit: z.string().optional(), // Make unit optional
+  quantity: z.number().positive(), // Enforce positive number
+  unit: z.string().optional(),
 });
 
 // Base Recipe Schema (used for validation on read and as base for create)
@@ -70,16 +70,19 @@ export async function GET(_request: Request): Promise<NextResponse> {
     }
 
     console.log(`[api/recipes]: Fetching ${recipeKeys.length} recipes using mget...`);
-    // Use redis.mget - returns array of results (data or null)
     const recipesData = await redis.mget<Recipe[]>(...recipeKeys);
     console.log(`[api/recipes]: Received ${recipesData ? recipesData.length : 'null'} results from mget.`);
-
+    
     // Filter out nulls (recipes not found) and invalid data
-    const validRecipes = recipesData.filter(recipe => {
-      if (!recipe) return false;
+    const validRecipes = recipesData.filter((recipe, index) => {
+      const key = recipeKeys[index] || 'unknown_key';
+      if (!recipe) {
+         console.warn(`[api/recipes] Null recipe data found for key index ${index}. Skipping.`);
+         return false;
+      }
       const result = RecipeSchema.safeParse(recipe);
       if (!result.success) {
-        console.warn(`[GET /api/recipes] Invalid recipe data found in Redis, skipping: ${JSON.stringify(recipe)}`, result.error.flatten());
+        console.warn(`[api/recipes] Invalid recipe data found for key ${key}, skipping: ${JSON.stringify(recipe)}. Error:`, result.error.flatten());
         return false;
       }
       return true;
@@ -132,7 +135,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     console.log(`[api/recipes POST]: Saving new recipe to Redis key: ${key} (if not exists)`);
     // redis.set returns the object if NX fails, null if NX succeeds
     const setResult = await redis.set(key, newRecipe, { nx: true }); 
-    console.log(`[api/recipes POST]: redis.set nx result for key ${key}:`, setResult);
+    // console.log(`[api/recipes POST]: redis.set nx result for key ${key}:`, setResult); // Remove potentially broken log
 
     // If setResult is NOT null, it means the key already existed (NX failed)
     if (setResult !== 'OK') { 
@@ -150,5 +153,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
-// No other functions (POST, PUT, DELETE for this file)
-// No imports needed for this simple test 
+// Ensure file ends correctly
