@@ -21,7 +21,7 @@ export async function PATCH(request: Request) {
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (_error) {
       console.error('[api/meal-plan-simple/shopping-list] Invalid JSON in request body');
       return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
     }

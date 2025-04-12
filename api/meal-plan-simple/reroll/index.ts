@@ -3,7 +3,6 @@
 import { NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { Recipe } from '../../../src/types/recipe';
-import { MealPlan } from '../../../src/types/mealPlan';
 
 // Initialize Redis
 const redis = new Redis({
@@ -22,7 +21,7 @@ export async function PUT(request: Request) {
     let body;
     try {
       body = await request.json();
-    } catch (error) {
+    } catch (_error) {
       console.error('[api/meal-plan-simple/reroll] Invalid JSON in request body');
       return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
     }

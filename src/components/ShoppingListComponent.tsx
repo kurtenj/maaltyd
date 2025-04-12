@@ -1,5 +1,13 @@
 import React, { useMemo } from 'react';
 import type { ShoppingListItem } from '../types/mealPlan';
+import {
+  Carrot, // Produce
+  Egg,    // Dairy
+  Beef,   // Meat
+  Wheat,  // Grains
+  Package, // Canned Goods / Other
+  Flame,  // Spices (more distinct than salt/pepper)
+} from 'lucide-react';
 
 interface ShoppingListComponentProps {
   shoppingList: ShoppingListItem[];
@@ -9,6 +17,17 @@ interface ShoppingListComponentProps {
 
 // Common food categories for grouping items
 type FoodCategory = 'Produce' | 'Dairy' | 'Meat' | 'Grains' | 'Canned Goods' | 'Spices' | 'Other';
+
+// Map categories to icons
+const categoryIcons: Record<FoodCategory, React.ElementType> = {
+  Produce: Carrot,
+  Dairy: Egg,
+  Meat: Beef,
+  Grains: Wheat,
+  'Canned Goods': Package, // Reuse Package for Canned Goods
+  Spices: Flame,
+  Other: Package, // Reuse Package for Other
+};
 
 // Simple categorization logic
 const categorizeItem = (itemName: string): FoodCategory => {
@@ -90,37 +109,44 @@ const ShoppingListComponent: React.FC<ShoppingListComponentProps> = ({
 
   return (
     <div className="space-y-6">
-      {nonEmptyCategories.map(([category, items]) => (
-        <div key={category} className="border-b border-stone-200 pb-4 last:border-b-0">
-          <h3 className="font-medium text-stone-800 mb-2">{category}</h3>
-          <ul className="space-y-2">
-            {items.map((item) => (
-              <li key={item.name} className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id={`item-${item.name}`}
-                  checked={item.acquired}
-                  onChange={() => onToggleItem(item.name, item.acquired)}
-                  disabled={disabled}
-                  className={`mr-3 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 ${
-                    disabled ? 'cursor-not-allowed' : 'cursor-pointer'
-                  }`}
-                />
-                <label 
-                  htmlFor={`item-${item.name}`} 
-                  className={`flex-grow text-stone-700 ${
-                    item.acquired ? 'line-through text-stone-400' : ''
-                  } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <span className="font-medium">{item.quantity}</span> 
-                  <span className="text-sm text-stone-500 ml-1 mr-2">{item.unit || ''}</span>
-                  {item.name}
-                </label>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {nonEmptyCategories.map(([category, items]) => {
+        const IconComponent = categoryIcons[category]; // Get the icon component
+        return (
+          <div key={category} className="border-b border-stone-200 pb-4 last:border-b-0">
+            {/* Category heading with icon */}
+            <h3 className="font-medium text-stone-800 mb-3 flex items-center">
+              {IconComponent && <IconComponent className="mr-2 h-5 w-5 text-emerald-700" strokeWidth={1.5}/>} 
+              {category}
+            </h3>
+            <ul className="space-y-2 pl-1"> {/* Added slight padding */}
+              {items.map((item) => (
+                <li key={item.name} className="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    id={`item-${item.name}`}
+                    checked={item.acquired}
+                    onChange={() => onToggleItem(item.name, item.acquired)}
+                    disabled={disabled}
+                    className={`mr-3 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 ${
+                      disabled ? 'cursor-not-allowed' : 'cursor-pointer'
+                    }`}
+                  />
+                  <label 
+                    htmlFor={`item-${item.name}`} 
+                    className={`flex-grow text-stone-700 ${
+                      item.acquired ? 'line-through text-stone-400' : ''
+                    } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <span className="font-medium">{item.quantity}</span> 
+                    <span className="text-sm text-stone-500 ml-1 mr-2">{item.unit || ''}</span>
+                    {item.name}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 };

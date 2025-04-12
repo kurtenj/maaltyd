@@ -1,5 +1,5 @@
 import { Recipe } from '../types/recipe';
-import { MealPlan } from '../types/mealPlan';
+import { MealPlan, ShoppingListItem } from '../types/mealPlan';
 
 /**
  * API request options with standardized cache prevention
@@ -152,7 +152,7 @@ export const mealPlanApi = {
   /**
    * Update the acquired status of a shopping list item
    */
-  async updateShoppingItemStatus(itemName: string, acquired: boolean): Promise<{ message: string, item: any }> {
+  async updateShoppingItemStatus(itemName: string, acquired: boolean): Promise<{ message: string, item: ShoppingListItem }> {
     const response = await fetch('/api/meal-plan-simple/shopping-list', {
       ...NO_CACHE_OPTIONS,
       method: 'PATCH',
@@ -162,6 +162,6 @@ export const mealPlanApi = {
       },
       body: JSON.stringify({ itemName, acquired }),
     });
-    return handleApiResponse<{ message: string, item: any }>(response);
+    return handleApiResponse<{ message: string, item: ShoppingListItem }>(response);
   }
 }; 

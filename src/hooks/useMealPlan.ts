@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { MealPlan } from '../types/mealPlan';
 import { mealPlanApi } from '../services/api';
-import type { MealPlan, ShoppingListItem } from '../types/mealPlan';
 import { logger } from '../utils/logger';
 import { tryCatchAsync } from '../utils/errorHandling';
 
