@@ -3,6 +3,7 @@ import React from 'react';
 import { useRecipes } from '../hooks/useRecipes';
 import RecipeFilter from '../components/RecipeFilter';
 import RecipeList from '../components/RecipeList';
+import MealPlanSummary from '../components/MealPlanSummary';
 
 const HomePage: React.FC = () => {
   const {
@@ -19,13 +20,16 @@ const HomePage: React.FC = () => {
   } = useRecipes();
 
   return (
-    <div className="min-h-screen font-sans">
+    <div className="min-h-screen font-sans container mx-auto p-4">
       {/* H1 Title Removed 
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold text-stone-900 font-serif">Maaltyd Recipe Finder</h1>
       </div>
       */}
 
+      {/* Add MealPlanSummary here */}
+      <MealPlanSummary />
+      
       {/* Adjust top margin if needed after removing H1 container */} 
       <div className="mt-4"> 
           {/* Only show error if NOT using dummy data */}

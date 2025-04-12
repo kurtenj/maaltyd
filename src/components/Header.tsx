@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import logoSrc from '../assets/logo.svg'; // Use SVG logo
 import { ROUTES } from '../utils/navigation';
+import { CalendarHeart } from 'lucide-react'; // Import the icon
 
 const Header: React.FC = () => {
   return (
@@ -12,13 +13,22 @@ const Header: React.FC = () => {
           <img src={logoSrc} alt="Maaltyd Logo" className="h-8 w-auto" /> {/* Adjust height as needed */} 
         </Link>
 
-        {/* Add Recipe Button */} 
-        <Link 
-          to={ROUTES.ADD_RECIPE} 
-          className="inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150 ease-in-out text-white bg-emerald-800 hover:bg-emerald-700 focus:ring-emerald-600"
-        >
-           New Recipe
-        </Link>
+        {/* Navigation Buttons */}
+        <div className="flex space-x-2">
+          <Link 
+            to={ROUTES.ADD_RECIPE} 
+            className="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
+          >
+             New Recipe
+          </Link>
+          <Link 
+            to={ROUTES.MEAL_PLAN} // Assuming MEAL_PLAN route is defined
+            className="inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150 ease-in-out text-white bg-emerald-800 hover:bg-emerald-700 focus:ring-emerald-600"
+          >
+            <CalendarHeart className="mr-2 h-4 w-4" />
+            Plan
+          </Link>
+        </div>
       </div>
     </header>
   );

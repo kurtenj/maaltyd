@@ -6,6 +6,7 @@ import './index.css'
 import HomePage from './pages/HomePage.tsx'; // Restore page imports
 import RecipeDetailPage from './pages/RecipeDetailPage.tsx';
 import AddRecipePage from './pages/AddRecipePage.tsx';
+import MealPlanPage from './pages/MealPlanPage.tsx'; // Add MealPlanPage import
 // import ApiTestPage from './pages/ApiTestPage.tsx'; // Remove test page import
 
 // Restore original router
@@ -25,6 +26,10 @@ const router = createBrowserRouter([
       {
         path: '/add-recipe',
         element: <AddRecipePage />,
+      },
+      {
+        path: '/meal-plan',
+        element: <MealPlanPage />,
       },
     ],
   },

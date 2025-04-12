@@ -1,4 +1,5 @@
 import { Recipe } from '../types/recipe';
+import { MealPlan, ShoppingListItem } from '../types/mealPlan';
 
 /**
  * API request options with standardized cache prevention
@@ -103,5 +104,64 @@ export const recipeApi = {
     }
     
     return handleApiResponse<void>(response);
+  }
+};
+
+/**
+ * Meal Plan API functions
+ */
+export const mealPlanApi = {
+  /**
+   * Get the current meal plan
+   */
+  async get(): Promise<MealPlan> {
+    const response = await fetch('/api/meal-plan-simple', NO_CACHE_OPTIONS);
+    return handleApiResponse<MealPlan>(response);
+  },
+
+  /**
+   * Generate a new meal plan (overwrites existing)
+   */
+  async generate(): Promise<MealPlan> {
+    const response = await fetch('/api/meal-plan-simple', {
+      ...NO_CACHE_OPTIONS,
+      method: 'POST',
+    });
+    return handleApiResponse<MealPlan>(response);
+  },
+
+  /**
+   * Re-roll a single recipe in the current meal plan
+   */
+  async rerollRecipe(currentPlan: MealPlan, recipeIndex: number): Promise<MealPlan> {
+    const response = await fetch('/api/meal-plan-simple/reroll', {
+      ...NO_CACHE_OPTIONS,
+      method: 'PUT',
+      headers: {
+        ...NO_CACHE_OPTIONS.headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        currentPlan: currentPlan, 
+        recipeIndexToReplace: recipeIndex 
+      }),
+    });
+    return handleApiResponse<MealPlan>(response);
+  },
+
+  /**
+   * Update the acquired status of a shopping list item
+   */
+  async updateShoppingItemStatus(itemName: string, acquired: boolean): Promise<{ message: string, item: ShoppingListItem }> {
+    const response = await fetch('/api/meal-plan-simple/shopping-list', {
+      ...NO_CACHE_OPTIONS,
+      method: 'PATCH',
+      headers: {
+        ...NO_CACHE_OPTIONS.headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ itemName, acquired }),
+    });
+    return handleApiResponse<{ message: string, item: ShoppingListItem }>(response);
   }
 }; 
