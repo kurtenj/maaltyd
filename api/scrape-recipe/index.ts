@@ -7,24 +7,34 @@ import type { Recipe } from '../../src/types/recipe';
 import OpenAI from 'openai';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { Readability } from '@mozilla/readability';
-import { JSDOM } from 'jsdom';
+// import { Readability } from '@mozilla/readability'; // Remove unused import
+// import { JSDOM } from 'jsdom'; // Remove unused import
+// import { STANDARD_UNITS } from '../../src/utils/constants'; // Remove unused import
 
 // Initialize OpenAI client
 const openai = process.env.OPENAI_API_KEY 
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) 
   : null;
 
+// Zod enum validation for units
+const standardUnitsTuple: [string, ...string[]] = [
+    '', // Need to list empty string first if it's allowed
+    'tsp', 'tbsp', 'fl oz', 'cup', 'pint', 'quart', 'gallon', 
+    'ml', 'l', 'oz', 'lb', 'g', 'kg', 
+    'pinch', 'dash', 'clove', 'slice', 
+    'servings' // Add 'servings'
+];
+
 // Schema for validating the request body
 const ScrapeRequestSchema = z.object({
   url: z.string().url()
 });
 
-// Recipe schema for validation (using number for quantity)
+// Recipe schema for validation
 const IngredientSchema = z.object({
   name: z.string().min(1),
-  quantity: z.number().positive(), // Ensure quantity is a positive number
-  unit: z.string().optional(),
+  quantity: z.number().positive(), // Already enforced
+  unit: z.enum(standardUnitsTuple).optional(), // Use z.enum with updated tuple
 });
 
 const RecipeSchema = z.object({
@@ -74,6 +84,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       throw new Error('Could not extract recipe content from the provided URL.');
     }
     console.log(`[api/scrape-recipe]: Successfully scraped ${recipeText.length} characters of recipe content`);
+    console.log('\n--- START SCRAPED TEXT ---');
+    console.log(recipeText);
+    console.log('--- END SCRAPED TEXT ---\n');
 
     // Step 2: Get the LLM prompt
     const prompt = await getLLMPrompt();
@@ -204,7 +217,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 
 /**
- * Scrape recipe content from a URL using Readability and Cheerio as fallback
+ * Scrape recipe content from a URL using Cheerio first, then body text as fallback
  */
 async function scrapeRecipe(url: string): Promise<string> {
   console.log(`[api/scrape-recipe]: Scraping URL: ${url}`);
@@ -222,59 +235,85 @@ async function scrapeRecipe(url: string): Promise<string> {
     }
     
     const html = response.data;
-    
-    // Try with Readability first (better for extracting article content)
+    let recipeText = '';
+    let cheerioFoundBoth = false;
+
+    // --- Try Cheerio First ---
+    console.log('[api/scrape-recipe]: Attempting targeted extraction with Cheerio...');
     try {
-      const dom = new JSDOM(html, { url });
-      const reader = new Readability(dom.window.document);
-      const article = reader.parse();
+      const $ = cheerio.load(html);
       
-      if (article && article.textContent) {
-        // Return the extracted text content
-        return `${article.title || ''}\n\n${article.textContent}`.replace(/\s\s+/g, ' ').trim();
+      // Remove potentially interfering elements
+      $('script, style, noscript, header, footer, nav, aside, .comments-area, #comments, .sidebar, form, button, input').remove();
+
+      let title = $('h1').first().text().trim();
+      if (!title) title = $('meta[property="og:title"]').attr('content') || $('title').text();
+
+      const ingredients: string[] = [];
+      const instructions: string[] = [];
+
+      const ingredientSelectors = [
+        '[itemprop="recipeIngredient"]', '.wprm-recipe-ingredient', 
+        '.tasty-recipes-ingredients li', '.easyrecipe-ingredient', 
+        'ul[class*="ingredient"] li', '.recipe-ingredients li', '.ingredients li'
+      ];
+      const instructionSelectors = [
+        '[itemprop="recipeInstructions"]', '.wprm-recipe-instruction', 
+        '.tasty-recipes-instructions li', '.easyrecipe-instruction', 
+        'ol[class*="instruction"] li', 'ol[class*="direction"] li', 
+        '.recipe-instructions li', '.recipe-directions li', '.directions li', '.method li'
+      ];
+
+      const extractFromSelectors = (selectors: string[], targetArray: string[]) => {
+        for (const selector of selectors) {
+          const elements = $(selector);
+          if (elements.length > 0) {
+            console.log(`[api/scrape-recipe]: Cheerio found ${elements.length} elements with selector: ${selector}`);
+            elements.each((i, el) => {
+              const text = $(el).text().replace(/\s\s+/g, ' ').trim();
+              if (text) targetArray.push(text);
+            });
+            return true; 
+          }
+        }
+        return false;
+      };
+
+      const ingredientsFound = extractFromSelectors(ingredientSelectors, ingredients);
+      const instructionsFound = extractFromSelectors(instructionSelectors, instructions);
+
+      if (ingredientsFound && instructionsFound) {
+        const cleanTitle = title.replace(/\s\s+/g, ' ').trim();
+        recipeText = `${cleanTitle}\n\nIngredients:\n${ingredients.join('\n')}\n\nInstructions:\n${instructions.join('\n')}`;
+        cheerioFoundBoth = true;
+        console.log(`[api/scrape-recipe]: Successfully extracted structured text (${recipeText.length} chars) using Cheerio.`);
+      } else {
+        console.warn(`[api/scrape-recipe]: Cheerio did not find both ingredients and instructions via targeted selectors.`);
       }
-    } catch (readabilityError) {
-      console.warn(`[api/scrape-recipe]: Readability extraction failed, falling back to Cheerio:`, readabilityError);
+    } catch (cheerioError) {
+        console.error('[api/scrape-recipe]: Error during targeted Cheerio extraction:', cheerioError);
     }
-    
-    // Fallback to Cheerio if Readability fails
-    const $ = cheerio.load(html);
-    
-    // Remove non-content elements
-    $('header, footer, nav, script, style, noscript, aside, .comments-area, #comments, .sidebar').remove();
-    
-    // Try to find recipe-specific containers
-    let recipeContainer = $('[itemtype="http://schema.org/Recipe"]').length 
-      ? $('[itemtype="http://schema.org/Recipe"]')
-      : $('.wprm-recipe-container').length 
-      ? $('.wprm-recipe-container')
-      : $('.tasty-recipes').length 
-      ? $('.tasty-recipes')
-      : $('.easyrecipe').length 
-      ? $('.easyrecipe')
-      : $('article.recipe').length 
-      ? $('article.recipe')
-      : $('.recipe-content').length 
-      ? $('.recipe-content')
-      : null;
-    
-    // Extract text from the recipe container if found
-    let recipeText = recipeContainer ? recipeContainer.text() : null;
-    
-    // If no recipe container found, try with main content areas
+
+    // --- Fallback to Body Text if Cheerio didn't find both --- 
+    if (!cheerioFoundBoth) {
+       console.warn('[api/scrape-recipe]: Falling back to body text extraction.');
+       // Reload HTML or use original if Cheerio load modified it in place
+       const $ = cheerio.load(html); 
+       $('script, style, noscript, header, footer, nav, aside, form, button, input').remove(); // Basic cleanup for body text
+       recipeText = $('body').text().replace(/\s\s+/g, ' ').trim();
+       console.log(`[api/scrape-recipe]: Extracted ${recipeText.length} characters using body text fallback.`);
+    }
+
+    // Ensure recipeText is not empty
     if (!recipeText) {
-      recipeContainer = $('main').length ? $('main') : $('article');
-      recipeText = recipeContainer.length ? recipeContainer.text() : null;
+        console.error('[api/scrape-recipe]: All scraping methods failed to produce text.');
+        throw new Error('Failed to extract any meaningful content from the URL.');
     }
-    
-    // If still no content, use the whole body text as a last resort
-    if (!recipeText) {
-      recipeText = $('body').text();
-    }
-    
-    return recipeText.replace(/\s\s+/g, ' ').trim();
+
+    return recipeText; // Return the best text found
+
   } catch (error) {
-    console.error(`[api/scrape-recipe]: Error scraping URL:`, error);
+    console.error(`[api/scrape-recipe]: Error in scrapeRecipe function:`, error);
     throw new Error(`Failed to scrape recipe from URL: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -283,8 +322,18 @@ async function scrapeRecipe(url: string): Promise<string> {
  * Get the LLM prompt for recipe processing
  */
 async function getLLMPrompt(): Promise<string> {
-  // The prompt can either be loaded from a file or defined inline
-  // For simplicity, we'll define it inline based on the llm-prompt.md content
+  // Define standard units here to include in the prompt
+  // *** Ensure this list matches the tuple used for Zod validation! ***
+  const allowedUnits = [
+    'tsp', 'tbsp', 'fl oz', 'cup', 'pint', 'quart', 'gallon', 
+    'ml', 'l', 'oz', 'lb', 'g', 'kg', 
+    'pinch', 'dash', 'clove', 'slice', 
+    // 'unit', // Remove unit
+    'servings', // Add servings
+    ''
+  ];
+  const allowedUnitsString = allowedUnits.map(u => u === '' ? `'' (empty string for unitless)` : `'${u}'`).join(', ');
+
   return `
 You are a helpful assistant skilled in organizing cooking instructions.
 
@@ -294,22 +343,24 @@ Your task is to take a full recipe (from a blog or website) and output a clean, 
   "title": "The name of the recipe",
   "main": "The primary ingredient (e.g., chicken, tofu, ground beef) - just the ingredient name",
   "other": [
-    { "name": "ingredient name", "quantity": "amount (e.g., 1, 1/2, 2.5)", "unit": "unit of measurement (e.g., cup, tbsp, g, oz, cloves, leave blank if none)" },
+    { "name": "ingredient name", "quantity": "amount (e.g., 1, 1/2, 2.5)", "unit": "unit of measurement" },
     { "name": "next ingredient name", "quantity": "...", "unit": "..." }
   ],
   "instructions": ["Step-by-step cooking instructions in plain text"]
 }
 
 IMPORTANT GUIDELINES:
-1. Make sure ALL properties in the ingredients exist and have proper values. 
-2. NEVER leave "name" fields empty or blank - this will cause validation errors.
-3. If you're uncertain about a quantity, use "1" as a default.
-4. If you're uncertain about a unit, leave it as an empty string.
-5. Remove any ingredients with empty or null name values.
-6. Ensure "other" is always a valid array with at least one ingredient.
-7. Ensure "instructions" is always a valid array with at least one instruction.
+1. Ensure ALL properties for each ingredient exist: 'name' (non-empty string), 'quantity' (positive number), and 'unit' (string matching Guideline 5).
+2. For the ingredient 'name', include necessary descriptive details from the original text (e.g., 'unsalted butter, melted', 'large onion, finely chopped', 'all-purpose flour, sifted'). Do not oversimplify the ingredient name itself.
+3. NEVER leave "name" fields empty or blank.
+4. If you're uncertain about a quantity or cannot parse it numerically, use the number '1' as a default value.
+5. **CRITICAL: For the 'unit' field, you MUST map the unit to one of the following standard values: ${allowedUnitsString}. Normalize common variations (e.g., 'teaspoon' becomes 'tsp', 'pound' becomes 'lb', 'ounces' becomes 'oz'). If no standard unit clearly matches or if the ingredient is naturally unitless (like '1 egg'), use '' (an empty string). If there's a quantity but no unit is specified in the text and it's not obviously unitless, use 'servings' as the default.**
+6. **CRITICAL: The 'quantity' field MUST be a positive JSON number (e.g., '1', '0.5', '2.75'), not a string.**
+7. Remove any ingredients with empty or null name values.
+8. Ensure "other" is always a valid array with at least one ingredient.
+9. Ensure "instructions" is always a valid array with at least one instruction.
 
-Focus on clarity and simplicity in the instructions. Remove brand names, product links, story content, or overly verbose language. Use plain English cooking instructions.
+Focus on clarity and simplicity in the cooking **instructions** array. Remove brand names, product links, story content, or overly verbose language from the steps. Use plain English cooking instructions. However, for the **ingredient list**, preserve important descriptive details within the 'name' field as per Guideline #2.
 
 Here is the raw recipe text:
 

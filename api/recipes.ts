@@ -8,6 +8,7 @@ import { Redis } from '@upstash/redis';
 import { z } from 'zod';
 import type { Recipe } from '../src/types/recipe';
 import { NextResponse } from 'next/server'; // Use NextResponse for consistency
+// import { STANDARD_UNITS } from '../src/utils/constants'; // Remove unused import
 
 // Initialize Redis client with proper URL prefixing
 const redisUrl = process.env.KV_REST_API_URL || '';
@@ -27,11 +28,22 @@ const redis = new Redis({
 console.log(`[api/recipes.ts] Initializing Redis with URL: ${redisUrl ? redisUrl : 'MISSING!'}`);
 console.log('--- !!! api/recipes.ts TOP LEVEL EXECUTION (Explicit Redis Init) !!! ---');
 
+// Zod doesn't have a direct way to create an enum from a const array like TS does.
+// We need to provide the values explicitly for the enum.
+// Ensure this list matches the STANDARD_UNITS array in constants.ts!
+const standardUnitsTuple: [string, ...string[]] = [
+    '', // Need to list empty string first if it's allowed
+    'tsp', 'tbsp', 'fl oz', 'cup', 'pint', 'quart', 'gallon', 
+    'ml', 'l', 'oz', 'lb', 'g', 'kg', 
+    'pinch', 'dash', 'clove', 'slice', 
+    'servings' // Add 'servings'
+];
+
 // --- Schemas ---
 const IngredientSchema = z.object({
   name: z.string().min(1),
-  quantity: z.number().positive(), // Enforce positive number
-  unit: z.string().optional(),
+  quantity: z.number().positive(),
+  unit: z.enum(standardUnitsTuple).optional(), // Use z.enum with the updated tuple
 });
 
 // Base Recipe Schema (used for validation on read and as base for create)

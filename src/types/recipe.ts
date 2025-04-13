@@ -1,7 +1,12 @@
+import { STANDARD_UNITS } from '../utils/constants'; // Import the constant
+
+// Define the standard unit type based on the constant array
+export type StandardUnit = typeof STANDARD_UNITS[number]; // Creates a union type from the array values
+
 export interface Ingredient {
   name: string;
   quantity: number; // Enforce numeric quantity
-  unit?: string; // Make unit optional here too
+  unit?: StandardUnit; // Use the specific union type, keep optional
 }
 
 export interface Recipe {
