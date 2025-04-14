@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { Recipe } from '../../src/types/recipe';
 import { MealPlan, ShoppingListItem } from '../../src/types/mealPlan';
+import { z } from 'zod';
 
 // Initialize Redis
 const redis = new Redis({
@@ -12,6 +13,29 @@ const redis = new Redis({
 });
 
 const MEAL_PLAN_KEY = 'mealplan:current';
+const RECIPE_PREFIX = 'recipe:'; // Define the recipe prefix
+
+// --- Schemas (Copied from api/recipes.ts for validation) ---
+const standardUnitsTuple_Simple: [string, ...string[]] = [
+    '', 'tsp', 'tbsp', 'fl oz', 'cup', 'pint', 'quart', 'gallon', 
+    'ml', 'l', 'oz', 'lb', 'g', 'kg', 
+    'pinch', 'dash', 'clove', 'slice', 'servings' // Ensure this matches!
+];
+
+const IngredientSchema_Simple = z.object({
+  name: z.string().min(1),
+  quantity: z.number().positive(),
+  unit: z.enum(standardUnitsTuple_Simple).optional(),
+});
+
+const RecipeSchema_Simple = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  main: z.string().min(1),
+  other: z.array(IngredientSchema_Simple).min(1),
+  instructions: z.array(z.string().min(1)).min(1),
+});
+// --- End Schemas ---
 
 // GET handler - fetch meal plan
 export async function GET() {
@@ -38,18 +62,49 @@ export async function POST() {
   console.log('[api/meal-plan-simple] POST request received');
 
   try {
-    // 1. Fetch recipes
-    const recipesRes = await fetch('http://localhost:3000/api/recipes');
-    if (!recipesRes.ok) {
-      console.error('[api/meal-plan-simple] Failed to fetch recipes:', recipesRes.status);
-      return NextResponse.json({ message: 'Failed to fetch recipes' }, { status: 500 });
+    // 1. Fetch recipes directly from Redis
+    console.log('[api/meal-plan-simple] Fetching recipe keys from Redis...');
+    const recipeKeys: string[] = [];
+    let cursor: string | number = 0;
+    do {
+      // Use the RECIPE_PREFIX constant defined earlier
+      const [nextCursorStr, keys] = await redis.scan(cursor as number, { match: `${RECIPE_PREFIX}*` });
+      recipeKeys.push(...keys);
+      cursor = nextCursorStr;
+    } while (cursor !== '0');
+
+    console.log(`[api/meal-plan-simple] Found ${recipeKeys.length} recipe keys.`);
+
+    if (recipeKeys.length === 0) {
+      return NextResponse.json({ message: 'No recipes available in database' }, { status: 400 });
     }
+
+    console.log(`[api/meal-plan-simple] Fetching ${recipeKeys.length} recipes using mget...`);
+    const recipesData = await redis.mget<Recipe[]>(...recipeKeys);
+    console.log(`[api/meal-plan-simple] Received ${recipesData ? recipesData.length : 'null'} results from mget.`);
+
+    // Filter out nulls and validate schema
+    const recipes = recipesData.filter((recipe, index) => {
+        const key = recipeKeys[index] || 'unknown_key';
+        if (!recipe) {
+            console.warn(`[api/meal-plan-simple] Null recipe data found for key index ${index}. Skipping.`);
+            return false;
+        }
+        // Use the locally defined schema for validation
+        const result = RecipeSchema_Simple.safeParse(recipe); 
+        if (!result.success) {
+            console.warn(`[api/meal-plan-simple] Invalid recipe data found for key ${key}, skipping: ${JSON.stringify(recipe)}. Error:`, result.error.flatten());
+            return false;
+        }
+        return true;
+    });
+    // --- End fetching recipes from Redis ---
     
-    const recipes: Recipe[] = await recipesRes.json();
-    console.log(`[api/meal-plan-simple] Fetched ${recipes.length} recipes`);
-    
+    console.log(`[api/meal-plan-simple] Using ${recipes.length} valid recipes for plan generation.`);
+
     if (recipes.length === 0) {
-      return NextResponse.json({ message: 'No recipes available' }, { status: 400 });
+      // This condition might be hit if all recipes failed validation
+      return NextResponse.json({ message: 'No valid recipes available after filtering' }, { status: 400 });
     }
     
     // 2. Generate meal plan
