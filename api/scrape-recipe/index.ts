@@ -113,8 +113,41 @@ export async function POST(request: Request): Promise<NextResponse> {
         .filter(ingredient => ingredient && typeof ingredient === 'object')
         .map(ingredient => {
           const name = typeof ingredient.name === 'string' ? ingredient.name.trim() : 'Ingredient';
-          const unit = typeof ingredient.unit === 'string' ? ingredient.unit.trim() : '';
+          let unit = typeof ingredient.unit === 'string' ? ingredient.unit.trim() : '';
           
+          // Normalize units: handle plurals and defaults
+          const lowerUnit = unit.toLowerCase();
+          if (lowerUnit === 'cups') {
+            unit = 'cup';
+          } else if (lowerUnit === 'tablespoons' || lowerUnit === 'tbsps') {
+            unit = 'tbsp';
+          } else if (lowerUnit === 'teaspoons' || lowerUnit === 'tsps') {
+            unit = 'tsp';
+          } else if (lowerUnit === 'grams' || lowerUnit === 'gram') {
+            unit = 'g';
+          } else if (lowerUnit === 'kilograms' || lowerUnit === 'kilogram') {
+              unit = 'kg';
+          } else if (lowerUnit === 'ounces' || lowerUnit === 'ounce') {
+              unit = 'oz';
+          } else if (lowerUnit === 'pounds' || lowerUnit === 'pound') {
+              unit = 'lb';
+          } else if (lowerUnit === 'milliliters' || lowerUnit === 'milliliter') {
+              unit = 'ml';
+          } else if (lowerUnit === 'liters' || lowerUnit === 'liter') {
+              unit = 'l';
+          } else if (lowerUnit === 'cloves') {
+              unit = 'clove';
+          } else if (lowerUnit === 'slices') {
+              unit = 'slice';
+          }
+          
+          // If unit is still not in the allowed list after normalization, default to 'servings'
+          // Note: We check against the *original* tuple values (singular)
+          if (!standardUnitsTuple.includes(unit)) {
+            console.warn(`[api/scrape-recipe] Unrecognized unit: '${ingredient.unit}', defaulting to 'servings' for ingredient '${name}'`);
+            unit = 'servings'; 
+          }
+
           // Attempt to parse quantity, default to 1 if invalid/missing
           let quantity = 1; // Default quantity
           if (ingredient.quantity !== null && ingredient.quantity !== undefined) {
