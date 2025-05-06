@@ -1,54 +1,11 @@
-# React + TypeScript + Vite
+# Maaltyd: AI-Assisted Recipe & Meal Planning App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Maaltyd is an intelligent web application designed to simplify your cooking and meal preparation. It leverages AI to help you discover, create, and organize recipes, and plan your weekly meals with ease. Whether you're importing recipes from your favorite food blogs or creating them from scratch, Maaltyd provides a streamlined, notecard-style experience.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+*   **AI-Powered Recipe Generation:** Create simple, notecard-like recipes from web links or by typing them out from scratch.
+*   **Intelligent Recipe Filtering & Sorting:** Find the perfect recipe by filtering and sorting based on ingredients you already have.
+*   **Weekly Meal Planning:** Effortlessly plan your meals for the week.
+*   **Automated Shopping Lists:** Generate comprehensive shopping lists directly from your weekly meal plan.
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
