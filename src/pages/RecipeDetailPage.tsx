@@ -186,7 +186,7 @@ const RecipeDetailPage: React.FC = () => {
           )}
 
           {/* Main recipe content */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+          <div className="bg-white p-5 rounded-lg shadow-sm border border-stone-200">
             {!recipe && !isFetchingDetails && (
               <p className="text-center text-red-500">Recipe not found.</p>
             )}
