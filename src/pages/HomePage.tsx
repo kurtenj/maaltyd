@@ -17,7 +17,7 @@ const HomePage: React.FC = () => {
   } = useRecipes();
 
   return (
-    <div className="min-h-screen font-sans container mx-auto">
+    <div className="min-h-screen container mx-auto">
       <MealPlanSummary />
 
       {/* Search Input and Recipe List Area */}

@@ -1,10 +1,14 @@
+import { ImageIcon } from 'lucide-react';
 import React from 'react';
-import { Image as ImageIcon } from 'lucide-react';
 
-const RecipeImagePlaceholder: React.FC = () => {
+interface RecipeImagePlaceholderProps {
+  className?: string; // To control size and other container styles
+}
+
+const RecipeImagePlaceholder: React.FC<RecipeImagePlaceholderProps> = ({ className }) => {
   return (
-    <div className="flex items-center justify-center w-full h-44 bg-stone-200 rounded-md">
-      <ImageIcon className="w-full h-16 text-stone-300" />
+    <div className={`${className || ''} bg-stone-200 flex items-center justify-center overflow-hidden rounded-md`}>
+      <ImageIcon className="w-1/2 h-1/2 max-w-[3rem] max-h-[3rem] text-stone-400" strokeWidth={1.5} /> {/* Icon size relative to container, capped */}
     </div>
   );
 };
