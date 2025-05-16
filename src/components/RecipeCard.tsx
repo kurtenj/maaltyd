@@ -40,7 +40,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe }) => {
 
         {/* Text Content Section */}
         <div className="p-4 flex flex-col justify-center flex-grow min-w-0">
-          <h3 className="text-md font-bold mb-1 capitalize text-stone-800 leading-tight truncate">
+          <h3 className="text-md font-bold mb-1 capitalize text-stone-800 truncate">
             {recipe.title}
           </h3>
           <h2 className="uppercase text-xs font-bold mb-2 mt-2 text-stone-400">
