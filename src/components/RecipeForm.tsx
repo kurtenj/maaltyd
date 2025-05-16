@@ -3,7 +3,6 @@ import { Recipe, Ingredient } from "../types/recipe";
 import Button from "./Button";
 import Input from "./Input";
 import { Trash2 } from "lucide-react";
-import { logger } from "../utils/logger";
 import { STANDARD_UNITS } from "../utils/constants";
 
 interface RecipeFormProps {
@@ -111,6 +110,25 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
           className="w-full"
           disabled={isSaving || isDeleting}
           required
+        />
+      </div>
+
+      {/* Image URL Field */}
+      <div>
+        <label
+          htmlFor="imageUrl"
+          className="block uppercase text-xs font-bold text-stone-400 mb-1"
+        >
+          Image URL (Optional)
+        </label>
+        <Input
+          type="url"
+          id="imageUrl"
+          value={recipe.imageUrl || ''} // Ensure value is not undefined
+          onChange={(e) => setRecipe({ ...recipe, imageUrl: e.target.value || undefined })}
+          className="w-full"
+          placeholder="https://example.com/image.jpg"
+          disabled={isSaving || isDeleting}
         />
       </div>
 

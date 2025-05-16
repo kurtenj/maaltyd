@@ -1,8 +1,8 @@
 import React, { InputHTMLAttributes } from 'react';
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  // We can add custom props later if needed, e.g., error states
-}
+// Using a type alias as InputProps doesn't add new members yet.
+// This satisfies the linter and allows for easy expansion later.
+export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 const Input: React.FC<InputProps> = ({ className, ...props }) => {
   const baseClasses = 

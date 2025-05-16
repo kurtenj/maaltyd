@@ -9,6 +9,7 @@ import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
 import { ArrowLeft } from "lucide-react";
+import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
 
 const RecipeDetailPage: React.FC = () => {
   const params = useParams<{ recipeId: string }>();
@@ -20,6 +21,7 @@ const RecipeDetailPage: React.FC = () => {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isFetchingDetails, setIsFetchingDetails] = useState<boolean>(true);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [imageLoadError, setImageLoadError] = useState<boolean>(false);
 
   // --- Edit Mode State ---
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -108,6 +110,7 @@ const RecipeDetailPage: React.FC = () => {
     setEditableRecipe(null);
     setDetailError(null);
     setIsFetchingDetails(true);
+    setImageLoadError(false);
 
     const actualRecipeIdFromUrl = params.recipeId;
 
@@ -132,6 +135,7 @@ const RecipeDetailPage: React.FC = () => {
           setRecipe(data);
           setEditableRecipe(JSON.parse(JSON.stringify(data)));
           setDetailError(null);
+          setImageLoadError(false);
         }
 
         setIsFetchingDetails(false);
@@ -206,6 +210,23 @@ const RecipeDetailPage: React.FC = () => {
               ) : (
                 // --- READ-ONLY MODE ---
                 <>
+                  {/* Recipe Image Display */}
+                  <div className="w-full mb-6 rounded-md overflow-hidden bg-stone-100 flex items-center justify-center">
+                    {(recipe.imageUrl && !imageLoadError) ? (
+                      <img 
+                        src={recipe.imageUrl} 
+                        alt={recipe.title} 
+                        className="w-full h-44 object-cover object-center"
+                        onError={() => {
+                          logger.warn("RecipeDetailPage", `Image failed to load: ${recipe.imageUrl}`);
+                          setImageLoadError(true);
+                        }}
+                      />
+                    ) : (
+                      <RecipeImagePlaceholder />
+                    )}
+                  </div>
+
                   <h1 className="text-3xl font-bold mb-4 capitalize pb-2 text-stone-900">
                     {recipe.title}
                   </h1>
