@@ -14,7 +14,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Added to explicitly set the Inter font */
 html {
   font-family: 'Nunito Sans', sans-serif;
 }
