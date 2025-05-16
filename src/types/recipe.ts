@@ -12,6 +12,7 @@ export interface Ingredient {
 export interface Recipe {
   id: string; // Unique identifier derived from the filename
   title: string;
+  imageUrl?: string; // Optional URL for the recipe image
   main: string;
   other: Ingredient[]; // Changed to array of Ingredient objects
   instructions: string[];

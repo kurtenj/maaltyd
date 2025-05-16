@@ -58,3 +58,6 @@ Thumbs.db
 # Explicitly ignore JS/map files in API source directory
 api/**/*.js
 api/**/*.js.map
+
+# Project-specific ignores
+docs/

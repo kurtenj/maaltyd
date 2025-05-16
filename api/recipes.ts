@@ -50,6 +50,7 @@ const IngredientSchema = z.object({
 const RecipeSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
+  imageUrl: z.string().url().optional().nullable(), // Added for recipe image
   main: z.string().min(1),
   other: z.array(IngredientSchema).min(1),
   instructions: z.array(z.string().min(1)).min(1), // Ensure instructions aren't empty
