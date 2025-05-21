@@ -8,7 +8,7 @@ import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Share2 } from "lucide-react";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
 
 const RecipeDetailPage: React.FC = () => {
@@ -101,6 +101,51 @@ const RecipeDetailPage: React.FC = () => {
       } else {
         refetchRecipes();
         navigate(ROUTES.HOME);
+      }
+    }
+  };
+
+  const handleShare = async () => {
+    if (!recipe) {
+      logger.error("RecipeDetailPage", "Share attempt failed: Recipe data not available.");
+      window.alert("Cannot share recipe: Recipe data is missing.");
+      return;
+    }
+
+    const ingredientsText = recipe.other
+      .map(
+        (ingredient) =>
+          `- ${ingredient.quantity || ""} ${ingredient.unit || ""} ${
+            ingredient.name
+          }`.trim().replace(/\s\s+/g, ' ') // Handle missing quantity/unit and remove extra spaces
+      )
+      .join("\n");
+
+    const instructionsText = recipe.instructions
+      .map((instruction, index) => `${index + 1}. ${instruction}`)
+      .join("\n");
+
+    const shareText = `Recipe: ${recipe.title}\n\nIngredients:\n${ingredientsText}\n\nInstructions:\n${instructionsText}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: recipe.title,
+          text: shareText,
+        });
+        logger.info("RecipeDetailPage", "Recipe shared successfully via Web Share API.");
+      } catch (error) {
+        logger.error("RecipeDetailPage", "Error sharing recipe via Web Share API:", error);
+        // Don't alert here as user might have cancelled, which is not an "error" for them.
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        logger.info("RecipeDetailPage", "Recipe copied to clipboard.");
+        window.alert("Recipe copied to clipboard!");
+      } catch (error) {
+        logger.error("RecipeDetailPage", "Error copying recipe to clipboard:", error);
+        window.alert("Could not copy recipe to clipboard.");
       }
     }
   };
@@ -286,6 +331,14 @@ const RecipeDetailPage: React.FC = () => {
               isLoading={isDeleting}
             >
               Delete
+            </Button>
+            <Button
+              onClick={handleShare}
+              variant="secondary" // Assuming a 'secondary' variant exists
+              className="px-4 py-2"
+            >
+              <Share2 size={16} className="mr-2" />
+              Share
             </Button>
           </div>
         </div>
