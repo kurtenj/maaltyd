@@ -19,6 +19,10 @@ const AddRecipePage: React.FC = () => {
   // State for URL input and processing
   const [recipeUrl, setRecipeUrl] = useState('');
   const [isScrapingUrl, setIsScrapingUrl] = useState(false);
+
+  // State for photo input and processing
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   
   // State for imported recipe
   const [importedRecipe, setImportedRecipe] = useState<Omit<Recipe, 'id'> | null>(null);
@@ -36,6 +40,55 @@ const AddRecipePage: React.FC = () => {
   
   const navigate = useNavigate();
   const { refetchRecipes } = useRecipes();
+
+  /**
+   * Handle file selection for photo import
+   */
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+      setStatusMessage(null); // Clear previous status messages
+    } else {
+      setSelectedFile(null);
+    }
+  };
+
+  /**
+   * Handle processing the selected photo
+   */
+  const handleProcessPhoto = async (event: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (!selectedFile) {
+      setStatusMessage('Please select an image file.');
+      setStatusType('error');
+      return;
+    }
+
+    setIsProcessingImage(true);
+    setStatusMessage('Processing image...');
+    setStatusType('success');
+    logger.log('AddRecipePage', 'Processing photo:', selectedFile.name);
+
+    try {
+      const processedRecipeData = await recipeApi.processImage(selectedFile);
+      
+      logger.log('AddRecipePage', 'Recipe data processed from image:', processedRecipeData);
+      setImportedRecipe(processedRecipeData);
+      setStatusMessage('Recipe extracted from image! Review and make any changes before saving.');
+      setStatusType('success');
+      setSelectedFile(null); // Clear the selected file
+      // No recipeImageUrl state to clear in this component as per current code.
+    } catch (error) {
+      logger.error('AddRecipePage', 'Error processing photo via API:', error);
+      // Check if the error has a 'message' property, otherwise stringify it.
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setStatusMessage(`Failed to process image: ${errorMessage}`);
+      setStatusType('error');
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
 
   /**
    * Handle importing recipe from URL
@@ -149,6 +202,7 @@ const AddRecipePage: React.FC = () => {
 
       {/* Show URL import section only when not editing a recipe */}
       {!importedRecipe && (
+        <>
         <div className="mb-8 p-4 bg-stone-50 rounded-lg border border-stone-200">
           <h2 className="text-xl font-semibold mb-3 text-stone-900">Import from URL</h2>
           <form onSubmit={handleImportFromUrl} className="space-y-4">
@@ -174,18 +228,52 @@ const AddRecipePage: React.FC = () => {
               Note: This feature works best with recipe sites that use structured data.
             </p>
           </form>
-          
-          <div className="mt-4 border-t border-stone-200 pt-4">
-            <h3 className="text-lg font-medium mb-2 text-stone-900">Or create a recipe manually</h3>
-            <button
-              type="button"
-              onClick={() => setImportedRecipe(defaultRecipe)}
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
-            >
-              Create New Recipe
-            </button>
-          </div>
         </div>
+
+        {/* Import from Photo Section */}
+        <div className="mb-8 p-4 bg-stone-50 rounded-lg border border-stone-200">
+          <h2 className="text-xl font-semibold mb-3 text-stone-900">Import from Photo</h2>
+          <form onSubmit={handleProcessPhoto} className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="block w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isProcessingImage}
+              />
+              <button
+                type="submit"
+                disabled={isProcessingImage || !selectedFile}
+                className="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessingImage ? 'Processing...' : 'Create Recipe from Photo'}
+              </button>
+            </div>
+            {selectedFile && (
+              <p className="text-xs text-stone-600">Selected file: {selectedFile.name}</p>
+            )}
+            <p className="text-xs text-stone-500">
+              Upload a photo of a recipe. This feature will attempt to extract recipe details from the image.
+            </p>
+          </form>
+        </div>
+        
+        {/* Create Manually Section */}
+        <div className="mb-8 p-4 bg-stone-50 rounded-lg border border-stone-200">
+          <h2 className="text-xl font-semibold mb-3 text-stone-900">Or Create Manually</h2>
+          <button
+            type="button"
+            onClick={() => setImportedRecipe(defaultRecipe)}
+            className="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
+          >
+            Create New Recipe
+          </button>
+          <p className="text-xs text-stone-500 mt-2">
+            Start with a blank recipe form.
+          </p>
+        </div>
+        </>
       )}
 
       {/* Show the recipe form when we have an imported recipe */}
@@ -203,11 +291,17 @@ const AddRecipePage: React.FC = () => {
         </div>
       )}
 
-      {/* Display status messages only when not showing the form and a message exists */}
-      {!importedRecipe && statusMessage && (
+      {/* Display status messages only when not showing the form and a message exists, and not currently processing an image or url (to avoid double messages) */}
+      {!importedRecipe && statusMessage && !isProcessingImage && !isScrapingUrl && (
         <div className={`mt-4 p-3 rounded text-center ${
           statusType === 'error' ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-green-100 text-green-800 border border-green-300'
         }`}>
+          {statusMessage}
+        </div>
+      )}
+      {/* Specific loading messages for URL scraping or image processing */}
+      {(isScrapingUrl || isProcessingImage) && statusMessage && (
+         <div className={`mt-4 p-3 rounded text-center bg-blue-100 text-blue-800 border border-blue-300`}>
           {statusMessage}
         </div>
       )}

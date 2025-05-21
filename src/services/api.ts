@@ -104,6 +104,25 @@ export const recipeApi = {
     }
     
     return handleApiResponse<void>(response);
+  },
+
+  /**
+   * Process recipe image
+   */
+  async processImage(imageFile: File): Promise<Omit<Recipe, 'id'>> {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+
+    const response = await fetch('/api/process-recipe-image', {
+      ...NO_CACHE_OPTIONS,
+      method: 'POST',
+      body: formData,
+      // Note: 'Content-Type' header is not set here,
+      // the browser will automatically set it to 'multipart/form-data'
+      // with the correct boundary when using FormData.
+    });
+
+    return handleApiResponse<Omit<Recipe, 'id'>>(response);
   }
 };
 
