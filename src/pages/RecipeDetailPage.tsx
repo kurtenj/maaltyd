@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
 import { useRecipes } from "../hooks/useRecipes";
 import { Recipe } from "../types/recipe";
 import Button from "../components/Button";
@@ -8,7 +8,7 @@ import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Link } from "lucide-react";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
 
 const RecipeDetailPage: React.FC = () => {
@@ -105,6 +105,43 @@ const RecipeDetailPage: React.FC = () => {
     }
   };
 
+  const handleShare = async () => {
+    if (!recipe) return;
+
+    const ingredientsText = recipe.other
+      .map(
+        (ingredient) =>
+          `- ${ingredient.quantity || ""} ${ingredient.unit || ""} ${
+            ingredient.name
+          }`
+      )
+      .join("\n");
+
+    const instructionsText = recipe.instructions
+      .map((instruction, index) => `${index + 1}. ${instruction}`)
+      .join("\n");
+
+    const shareText = `Recipe: ${recipe.title}\n\nIngredients:\n${ingredientsText}\n\nInstructions:\n${instructionsText}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: recipe.title,
+          text: shareText,
+        });
+      } catch (_error) {
+        // User likely cancelled, no action needed
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        window.alert("Recipe copied to clipboard!");
+      } catch (_error) {
+        window.alert("Could not copy recipe to clipboard.");
+      }
+    }
+  };
+
   useEffect(() => {
     setRecipe(null);
     setEditableRecipe(null);
@@ -177,7 +214,7 @@ const RecipeDetailPage: React.FC = () => {
         <div className="max-w-2xl mx-auto p-1">
           {/* Back Link */}
           {!isEditing && (
-            <Link
+            <RouterLink
               to={ROUTES.HOME}
               className="inline-flex items-center text-emerald-700 hover:text-emerald-900 mb-4 group text-sm"
             >
@@ -186,7 +223,7 @@ const RecipeDetailPage: React.FC = () => {
                 className="mr-1 group-hover:-translate-x-1 transition-transform"
               />
               Back to Recipes
-            </Link>
+            </RouterLink>
           )}
 
           {/* Main recipe content */}
@@ -212,13 +249,16 @@ const RecipeDetailPage: React.FC = () => {
                 <>
                   {/* Recipe Image Display */}
                   <div className="w-full mb-6 rounded-md overflow-hidden bg-stone-100 flex items-center justify-center">
-                    {(recipe.imageUrl && !imageLoadError) ? (
-                      <img 
-                        src={recipe.imageUrl} 
-                        alt={recipe.title} 
+                    {recipe.imageUrl && !imageLoadError ? (
+                      <img
+                        src={recipe.imageUrl}
+                        alt={recipe.title}
                         className="w-full h-44 object-cover object-center"
                         onError={() => {
-                          logger.warn("RecipeDetailPage", `Image failed to load: ${recipe.imageUrl}`);
+                          logger.warn(
+                            "RecipeDetailPage",
+                            `Image failed to load: ${recipe.imageUrl}`
+                          );
                           setImageLoadError(true);
                         }}
                       />
@@ -227,8 +267,15 @@ const RecipeDetailPage: React.FC = () => {
                     )}
                   </div>
 
-                  <h1 className="text-3xl font-bold mb-4 capitalize pb-2 text-stone-900">
-                    {recipe.title}
+                  <h1 className="text-3xl font-bold mb-4 capitalize pb-2 text-stone-900 flex items-center gap-3">
+                    <span>{recipe.title}</span>
+                    <button
+                      onClick={handleShare}
+                      className="text-stone-400 hover:text-stone-600 transition-colors p-0.5"
+                      title="Share recipe"
+                    >
+                      <Link size={20} />
+                    </button>
                   </h1>
 
                   <h2 className="uppercase text-xs font-bold mb-2 mt-6 text-stone-400">
