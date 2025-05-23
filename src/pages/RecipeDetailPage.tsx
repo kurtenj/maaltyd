@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
 import { useRecipes } from "../hooks/useRecipes";
 import { Recipe } from "../types/recipe";
 import Button from "../components/Button";
@@ -8,7 +8,7 @@ import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
-import { ArrowLeft, Share2 } from "lucide-react";
+import { ArrowLeft, Link } from "lucide-react";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
 
 const RecipeDetailPage: React.FC = () => {
@@ -106,18 +106,14 @@ const RecipeDetailPage: React.FC = () => {
   };
 
   const handleShare = async () => {
-    if (!recipe) {
-      logger.error("RecipeDetailPage", "Share attempt failed: Recipe data not available.");
-      window.alert("Cannot share recipe: Recipe data is missing.");
-      return;
-    }
+    if (!recipe) return;
 
     const ingredientsText = recipe.other
       .map(
         (ingredient) =>
           `- ${ingredient.quantity || ""} ${ingredient.unit || ""} ${
             ingredient.name
-          }`.trim().replace(/\s\s+/g, ' ') // Handle missing quantity/unit and remove extra spaces
+          }`
       )
       .join("\n");
 
@@ -133,18 +129,14 @@ const RecipeDetailPage: React.FC = () => {
           title: recipe.title,
           text: shareText,
         });
-        logger.info("RecipeDetailPage", "Recipe shared successfully via Web Share API.");
-      } catch (error) {
-        logger.error("RecipeDetailPage", "Error sharing recipe via Web Share API:", error);
-        // Don't alert here as user might have cancelled, which is not an "error" for them.
+      } catch (_error) {
+        // User likely cancelled, no action needed
       }
     } else {
       try {
         await navigator.clipboard.writeText(shareText);
-        logger.info("RecipeDetailPage", "Recipe copied to clipboard.");
         window.alert("Recipe copied to clipboard!");
-      } catch (error) {
-        logger.error("RecipeDetailPage", "Error copying recipe to clipboard:", error);
+      } catch (_error) {
         window.alert("Could not copy recipe to clipboard.");
       }
     }
@@ -222,7 +214,7 @@ const RecipeDetailPage: React.FC = () => {
         <div className="max-w-2xl mx-auto p-1">
           {/* Back Link */}
           {!isEditing && (
-            <Link
+            <RouterLink
               to={ROUTES.HOME}
               className="inline-flex items-center text-emerald-700 hover:text-emerald-900 mb-4 group text-sm"
             >
@@ -231,7 +223,7 @@ const RecipeDetailPage: React.FC = () => {
                 className="mr-1 group-hover:-translate-x-1 transition-transform"
               />
               Back to Recipes
-            </Link>
+            </RouterLink>
           )}
 
           {/* Main recipe content */}
@@ -257,13 +249,16 @@ const RecipeDetailPage: React.FC = () => {
                 <>
                   {/* Recipe Image Display */}
                   <div className="w-full mb-6 rounded-md overflow-hidden bg-stone-100 flex items-center justify-center">
-                    {(recipe.imageUrl && !imageLoadError) ? (
-                      <img 
-                        src={recipe.imageUrl} 
-                        alt={recipe.title} 
+                    {recipe.imageUrl && !imageLoadError ? (
+                      <img
+                        src={recipe.imageUrl}
+                        alt={recipe.title}
                         className="w-full h-44 object-cover object-center"
                         onError={() => {
-                          logger.warn("RecipeDetailPage", `Image failed to load: ${recipe.imageUrl}`);
+                          logger.warn(
+                            "RecipeDetailPage",
+                            `Image failed to load: ${recipe.imageUrl}`
+                          );
                           setImageLoadError(true);
                         }}
                       />
@@ -272,8 +267,15 @@ const RecipeDetailPage: React.FC = () => {
                     )}
                   </div>
 
-                  <h1 className="text-3xl font-bold mb-4 capitalize pb-2 text-stone-900">
-                    {recipe.title}
+                  <h1 className="text-3xl font-bold mb-4 capitalize pb-2 text-stone-900 flex items-center gap-3">
+                    <span>{recipe.title}</span>
+                    <button
+                      onClick={handleShare}
+                      className="text-stone-400 hover:text-stone-600 transition-colors p-0.5"
+                      title="Share recipe"
+                    >
+                      <Link size={20} />
+                    </button>
                   </h1>
 
                   <h2 className="uppercase text-xs font-bold mb-2 mt-6 text-stone-400">
@@ -331,14 +333,6 @@ const RecipeDetailPage: React.FC = () => {
               isLoading={isDeleting}
             >
               Delete
-            </Button>
-            <Button
-              onClick={handleShare}
-              variant="secondary" // Assuming a 'secondary' variant exists
-              className="px-4 py-2"
-            >
-              <Share2 size={16} className="mr-2" />
-              Share
             </Button>
           </div>
         </div>

@@ -41,9 +41,9 @@ const mockNavigatorClipboardWriteText = jest.fn();
 const mockWindowAlert = jest.fn();
 
 beforeAll(() => {
-  // @ts-ignore
+  // @ts-expect-error - Mocking global navigator.share for testing
   global.navigator.share = mockNavigatorShare;
-  // @ts-ignore
+  // @ts-expect-error - Mocking global navigator.clipboard for testing
   global.navigator.clipboard = { writeText: mockNavigatorClipboardWriteText };
   global.window.alert = mockWindowAlert;
 });
@@ -128,7 +128,7 @@ describe("RecipeDetailPage - Sharing Functionality", () => {
   });
 
   test("should use clipboard.writeText and alert success if navigator.share is undefined", async () => {
-    // @ts-ignore
+    // @ts-expect-error - Temporarily disabling navigator.share for fallback testing
     global.navigator.share = undefined; // Simulate navigator.share not being available
     mockNavigatorClipboardWriteText.mockResolvedValueOnce(undefined); // Simulate successful copy
 
@@ -145,12 +145,12 @@ describe("RecipeDetailPage - Sharing Functionality", () => {
       expect(mockWindowAlert).toHaveBeenCalledWith("Recipe copied to clipboard!");
     });
     // Restore navigator.share for other tests
-    // @ts-ignore
+    // @ts-expect-error - Restoring mocked navigator.share after test
     global.navigator.share = mockNavigatorShare;
   });
 
   test("should alert error if clipboard.writeText fails and navigator.share is undefined", async () => {
-    // @ts-ignore
+    // @ts-expect-error - Temporarily disabling navigator.share for fallback testing
     global.navigator.share = undefined; // Simulate navigator.share not being available
     const copyError = new Error("Copy failed");
     mockNavigatorClipboardWriteText.mockRejectedValueOnce(copyError); // Simulate failed copy
@@ -169,7 +169,7 @@ describe("RecipeDetailPage - Sharing Functionality", () => {
       expect(mockWindowAlert).toHaveBeenCalledWith("Could not copy recipe to clipboard.");
     });
     // Restore navigator.share for other tests
-    // @ts-ignore
+    // @ts-expect-error - Restoring mocked navigator.share after test
     global.navigator.share = mockNavigatorShare;
   });
 
