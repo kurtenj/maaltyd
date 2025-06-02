@@ -16,6 +16,11 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) 
   : null;
 
+// Initialize Clerk client
+// const clerk = createClerkClient({
+//   secretKey: process.env.CLERK_SECRET_KEY!,
+// });
+
 // Zod enum validation for units
 const standardUnitsTuple: [string, ...string[]] = [
     '', // Need to list empty string first if it's allowed
@@ -46,6 +51,18 @@ const RecipeSchema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   console.log(`[api/scrape-recipe]: POST request received`);
+  
+  // Check Clerk authentication via headers (works with Vercel)
+  const userId = request.headers.get('x-clerk-user-id');
+  
+  if (!userId) {
+    console.log('[api/scrape-recipe]: No authenticated user found');
+    return NextResponse.json({ 
+      message: 'Authentication required. Please sign in to access this feature.' 
+    }, { status: 401 });
+  }
+  
+  console.log(`[api/scrape-recipe]: Authenticated user: ${userId}`);
   
   // Check if OpenAI is configured
   if (!openai) {

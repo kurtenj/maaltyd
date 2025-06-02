@@ -115,6 +115,18 @@ export async function GET(_request: Request): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   console.log(`[api/recipes]: POST request received (using @upstash/redis).`);
 
+  // Check Clerk authentication
+  const userId = request.headers.get('x-clerk-user-id');
+  
+  if (!userId) {
+    console.log('[POST /api/recipes]: No authenticated user found');
+    return NextResponse.json({ 
+      message: 'Authentication required. Please sign in to create recipes.' 
+    }, { status: 401 });
+  }
+  
+  console.log(`[POST /api/recipes]: Authenticated user: ${userId}`);
+
   let requestBody: unknown;
   try {
     requestBody = await request.json();

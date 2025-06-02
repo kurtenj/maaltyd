@@ -10,6 +10,7 @@ import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
 import { ArrowLeft, Link } from "lucide-react";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
+import { SignedIn } from '@clerk/clerk-react';
 
 const RecipeDetailPage: React.FC = () => {
   const params = useParams<{ recipeId: string }>();
@@ -318,23 +319,25 @@ const RecipeDetailPage: React.FC = () => {
               ))}
           </div>
           {/* Action Buttons */}
-          <div className="flex justify-start space-x-2 pt-4">
-            <Button
-              onClick={handleEdit}
-              variant="primary"
-              className="px-4 py-2"
-            >
-              Edit
-            </Button>
-            <Button
-              onClick={handleDelete}
-              variant="danger"
-              className="px-4 py-2"
-              isLoading={isDeleting}
-            >
-              Delete
-            </Button>
-          </div>
+          <SignedIn>
+            <div className="flex justify-start space-x-2 pt-4">
+              <Button
+                onClick={handleEdit}
+                variant="primary"
+                className="px-4 py-2"
+              >
+                Edit
+              </Button>
+              <Button
+                onClick={handleDelete}
+                variant="danger"
+                className="px-4 py-2"
+                isLoading={isDeleting}
+              >
+                Delete
+              </Button>
+            </div>
+          </SignedIn>
         </div>
       </div>
     );
