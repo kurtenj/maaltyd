@@ -90,6 +90,18 @@ export async function GET(request: Request): Promise<NextResponse> {
 
 // --- DELETE Handler (Delete Recipe) ---
 export async function DELETE(request: Request): Promise<NextResponse> {
+  // Check Clerk authentication
+  const userId = request.headers.get('x-clerk-user-id');
+  
+  if (!userId) {
+    console.log('[DELETE /api/recipe-by-id]: No authenticated user found');
+    return NextResponse.json({ 
+      message: 'Authentication required. Please sign in to delete recipes.' 
+    }, { status: 401 });
+  }
+  
+  console.log(`[DELETE /api/recipe-by-id]: Authenticated user: ${userId}`);
+
   // Get the ID from the URL query parameters
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -119,6 +131,18 @@ export async function DELETE(request: Request): Promise<NextResponse> {
 
 // --- PUT Handler (Update Recipe) ---
 export async function PUT(request: Request): Promise<NextResponse> {
+  // Check Clerk authentication
+  const userId = request.headers.get('x-clerk-user-id');
+  
+  if (!userId) {
+    console.log('[PUT /api/recipe-by-id]: No authenticated user found');
+    return NextResponse.json({ 
+      message: 'Authentication required. Please sign in to edit recipes.' 
+    }, { status: 401 });
+  }
+  
+  console.log(`[PUT /api/recipe-by-id]: Authenticated user: ${userId}`);
+
   // Get the ID from the URL query parameters
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
