@@ -14,6 +14,17 @@ const NO_CACHE_OPTIONS = {
 };
 
 /**
+ * Get authenticated headers with user ID
+ */
+function getAuthHeaders(userId?: string | null): Record<string, string> {
+  const headers: Record<string, string> = { ...NO_CACHE_OPTIONS.headers };
+  if (userId) {
+    headers['x-clerk-user-id'] = userId;
+  }
+  return headers;
+}
+
+/**
  * Helper function to handle API errors
  */
 async function handleApiResponse<T>(response: Response): Promise<T> {
@@ -59,12 +70,12 @@ export const recipeApi = {
   /**
    * Create new recipe
    */
-  async create(recipe: Omit<Recipe, 'id'>): Promise<Recipe> {
+  async create(recipe: Omit<Recipe, 'id'>, userId?: string | null): Promise<Recipe> {
     const response = await fetch('/api/recipes', {
       ...NO_CACHE_OPTIONS,
       method: 'POST',
       headers: {
-        ...NO_CACHE_OPTIONS.headers,
+        ...getAuthHeaders(userId),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(recipe),
@@ -73,15 +84,15 @@ export const recipeApi = {
     return handleApiResponse<Recipe>(response);
   },
   
-  /**
+    /**
    * Update existing recipe
    */
-  async update(id: string, recipe: Recipe): Promise<Recipe> {
+  async update(id: string, recipe: Recipe, userId?: string | null): Promise<Recipe> {
     const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'PUT',
       headers: {
-        ...NO_CACHE_OPTIONS.headers,
+        ...getAuthHeaders(userId),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(recipe),
@@ -89,14 +100,17 @@ export const recipeApi = {
     
     return handleApiResponse<Recipe>(response);
   },
-  
+
   /**
    * Delete recipe
    */
-  async delete(id: string): Promise<void> {
+  async delete(id: string, userId?: string | null): Promise<void> {
     const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'DELETE',
+      headers: {
+        ...getAuthHeaders(userId),
+      },
     });
     
     if (response.status === 204 || response.ok) {

@@ -10,7 +10,7 @@ import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
 import { ArrowLeft, Link } from "lucide-react";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
-import { SignedIn } from '@clerk/clerk-react';
+import { SignedIn, useAuth } from '@clerk/clerk-react';
 
 const RecipeDetailPage: React.FC = () => {
   const params = useParams<{ recipeId: string }>();
@@ -18,6 +18,7 @@ const RecipeDetailPage: React.FC = () => {
 
   const { refetchRecipes } = useRecipes();
   const navigate = useNavigate();
+  const { userId } = useAuth();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isFetchingDetails, setIsFetchingDetails] = useState<boolean>(true);
@@ -52,7 +53,7 @@ const RecipeDetailPage: React.FC = () => {
     setEditError(null);
 
     const [result, error] = await tryCatchAsync(
-      () => recipeApi.update(recipeId, updatedRecipe),
+      () => recipeApi.update(recipeId, updatedRecipe, userId),
       "RecipeDetailPage",
       "Failed to update recipe"
     );
@@ -89,7 +90,7 @@ const RecipeDetailPage: React.FC = () => {
 
       const [, error] = await tryCatchAsync(
         () => {
-          return recipeApi.delete(recipe.id);
+          return recipeApi.delete(recipe.id, userId);
         },
         "RecipeDetailPage",
         "Failed to delete recipe"

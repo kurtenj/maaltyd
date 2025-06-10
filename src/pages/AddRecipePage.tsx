@@ -37,7 +37,7 @@ const AddRecipePage: React.FC = () => {
   
   const navigate = useNavigate();
   const { refetchRecipes } = useRecipes();
-  const { getToken, isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded, userId } = useAuth();
 
   /**
    * Handle importing recipe from URL
@@ -62,18 +62,16 @@ const AddRecipePage: React.FC = () => {
     setStatusType('success');
     
     try {
-      // Get the authentication token from Clerk
-      const token = await getToken();
-      
-      if (!token) {
-        throw new Error('Authentication failed. Please try signing in again.');
+      // Get the user ID from Clerk
+      if (!userId) {
+        throw new Error('User ID not available. Please try signing in again.');
       }
 
       const response = await fetch('/api/scrape-recipe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'x-clerk-user-id': userId,
         },
         body: JSON.stringify({ url: recipeUrl }),
       });
@@ -111,7 +109,7 @@ const AddRecipePage: React.FC = () => {
     setStatusType('success');
 
     const [newRecipe, createError] = await tryCatchAsync(
-      () => recipeApi.create(recipe),
+      () => recipeApi.create(recipe, userId),
       'AddRecipePage',
       'Failed to create recipe'
     );
