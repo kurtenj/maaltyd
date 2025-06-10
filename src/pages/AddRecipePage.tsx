@@ -11,6 +11,7 @@ import { ROUTES } from '../utils/navigation';
 // Import the Recipe type
 import type { Recipe } from '../types/recipe';
 import RecipeForm from '../components/RecipeForm';
+import { useAuth } from '@clerk/clerk-react';
 
 /**
  * Add Recipe Page with URL scraping functionality
@@ -25,7 +26,7 @@ const AddRecipePage: React.FC = () => {
   const defaultRecipe: Omit<Recipe, 'id'> = {
     title: '',
     main: '',
-    other: [{ name: '', quantity: '', unit: '' }],
+    other: [{ name: '', quantity: 0, unit: '' }],
     instructions: ['']
   };
   
@@ -36,6 +37,7 @@ const AddRecipePage: React.FC = () => {
   
   const navigate = useNavigate();
   const { refetchRecipes } = useRecipes();
+  const { getToken, isSignedIn, isLoaded } = useAuth();
 
   /**
    * Handle importing recipe from URL
@@ -48,16 +50,30 @@ const AddRecipePage: React.FC = () => {
       setStatusType('error');
       return;
     }
+
+    if (!isSignedIn) {
+      setStatusMessage('Please sign in to import recipes');
+      setStatusType('error');
+      return;
+    }
     
     setIsScrapingUrl(true);
     setStatusMessage('Importing recipe from URL...');
     setStatusType('success');
     
     try {
+      // Get the authentication token from Clerk
+      const token = await getToken();
+      
+      if (!token) {
+        throw new Error('Authentication failed. Please try signing in again.');
+      }
+
       const response = await fetch('/api/scrape-recipe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ url: recipeUrl }),
       });
@@ -87,130 +103,148 @@ const AddRecipePage: React.FC = () => {
   };
 
   /**
-   * Handle saving the recipe
+   * Handle creating a new recipe
    */
-  const handleSaveRecipe = async (recipeToSave: Recipe | Omit<Recipe, 'id'>): Promise<void> => {
+  const handleCreateRecipe = async (recipe: Omit<Recipe, 'id'>) => {
     setIsCreating(true);
-    setStatusMessage(null);
-    
-    // Remove any existing ID as we're creating a new recipe
-    // This handles cases where a Recipe type might be passed with an id
-    const { id: _id, ...recipeWithoutId } = recipeToSave as Recipe;
-    
-    logger.log('AddRecipePage', 'Saving recipe:', recipeWithoutId);
+    setStatusMessage('Creating recipe...');
+    setStatusType('success');
 
-    const [newRecipeResult, error] = await tryCatchAsync(
-      () => recipeApi.create(recipeWithoutId),
+    const [newRecipe, createError] = await tryCatchAsync(
+      () => recipeApi.create(recipe),
       'AddRecipePage',
-      'Failed to save recipe'
+      'Failed to create recipe'
     );
 
-    if (error) {
-      logger.error('AddRecipePage', 'Error submitting recipe:', error);
-      const errorMessage = (error instanceof Error && error.message.includes('already exists')) 
-        ? error.message 
-        : `Error saving recipe: ${error.message}`;
-      setStatusMessage(errorMessage);
+    if (createError) {
+      logger.error('AddRecipePage', 'Error creating recipe:', createError);
+      setStatusMessage(`Failed to create recipe: ${createError.message}`);
       setStatusType('error');
       setIsCreating(false);
-    } else if (newRecipeResult) {
-      logger.log('AddRecipePage', 'Recipe saved successfully:', newRecipeResult);
-      
-      // Reset form state
-      setImportedRecipe(null);
-      refetchRecipes();
-
-      // Navigate to the recipe detail page
-      if (newRecipeResult.id) {
-        navigate(ROUTES.RECIPE_DETAIL(newRecipeResult.id));
-      } else {
-        navigate(ROUTES.HOME);
-      }
+      return;
     }
+
+    if (newRecipe) {
+      logger.log('AddRecipePage', 'Recipe created successfully:', newRecipe);
+      await refetchRecipes(); // Refresh the recipes list
+      navigate(ROUTES.HOME); // Redirect to home page or recipe detail page
+    }
+
+    setIsCreating(false);
+  };
+
+  /**
+   * Handle saving the recipe from the form
+   */
+  const handleSaveRecipe = async (recipe: Recipe) => {
+    // Remove the id from the recipe since we're creating, not updating
+    const { id: _id, ...recipeWithoutId } = recipe;
+    await handleCreateRecipe(recipeWithoutId);
   };
 
   /**
    * Handle canceling the form
    */
-  const handleCancel = () => {
+  const handleCancelForm = () => {
+    // Clear any imported recipe and reset form
     setImportedRecipe(null);
     setStatusMessage(null);
   };
 
+  // Show loading state while Clerk is initializing
+  if (!isLoaded) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center py-8">
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  // Show sign-in message if user is not authenticated
+  if (!isSignedIn) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center py-8">
+          <h1 className="text-2xl font-bold mb-4">Sign In Required</h1>
+          <p className="text-gray-600 mb-4">
+            Please sign in to add recipes to your collection.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen p-4">
-      <Link 
-        to={ROUTES.HOME}
-        className="mb-4 inline-block text-emerald-800 hover:text-emerald-600"
-      >
-        &larr; Back to Recipes
-      </Link>
-      <h1 className="text-3xl font-bold mb-6 text-stone-900">Add New Recipe</h1>
+    <div className="max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Add New Recipe</h1>
+        <Link 
+          to={ROUTES.HOME} 
+          className="text-emerald-600 hover:text-emerald-700 font-medium"
+        >
+          ← Back to Recipes
+        </Link>
+      </div>
 
-      {/* Show URL import section only when not editing a recipe */}
-      {!importedRecipe && (
-        <div className="mb-8 p-4 bg-stone-50 rounded-lg border border-stone-200">
-          <h2 className="text-xl font-semibold mb-3 text-stone-900">Import from URL</h2>
-          <form onSubmit={handleImportFromUrl} className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="url"
-                placeholder="Paste recipe URL here..."
-                className="flex-grow rounded-md border-stone-300 shadow-sm focus:ring-2 focus:ring-inset focus:ring-emerald-600 px-3 py-2"
-                value={recipeUrl}
-                onChange={(e) => setRecipeUrl(e.target.value)}
-                disabled={isScrapingUrl}
-              />
-              <button
-                type="submit"
-                disabled={isScrapingUrl || !recipeUrl.trim()}
-                className="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isScrapingUrl ? 'Importing...' : 'Import Recipe'}
-              </button>
-            </div>
-            <p className="text-xs text-stone-500">
-              Paste the URL of a recipe page to automatically extract the recipe data.
-              Note: This feature works best with recipe sites that use structured data.
-            </p>
-          </form>
-          
-          <div className="mt-4 border-t border-stone-200 pt-4">
-            <h3 className="text-lg font-medium mb-2 text-stone-900">Or create a recipe manually</h3>
-            <button
-              type="button"
-              onClick={() => setImportedRecipe(defaultRecipe)}
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
-            >
-              Create New Recipe
-            </button>
+      {/* URL Import Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4">Import from URL</h2>
+        <form onSubmit={handleImportFromUrl} className="space-y-4">
+          <div>
+            <label htmlFor="recipe-url" className="block text-sm font-medium text-gray-700 mb-1">
+              Recipe URL
+            </label>
+            <input
+              id="recipe-url"
+              type="url"
+              value={recipeUrl}
+              onChange={(e) => setRecipeUrl(e.target.value)}
+              placeholder="https://example.com/recipe"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              disabled={isScrapingUrl}
+            />
           </div>
-        </div>
-      )}
+          <button
+            type="submit"
+            disabled={isScrapingUrl || !recipeUrl.trim()}
+            className="w-full bg-emerald-600 text-white py-2 px-4 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {isScrapingUrl ? 'Importing...' : 'Import Recipe'}
+          </button>
+        </form>
+      </div>
 
-      {/* Show the recipe form when we have an imported recipe */}
-      {importedRecipe && (
-        <div className="bg-white p-6 rounded-lg shadow-md border border-stone-200">
-          <h2 className="text-xl font-semibold mb-4 text-stone-900">Edit Recipe Details</h2>
-          <RecipeForm
-            initialRecipe={{ ...importedRecipe, id: 'temp-id' }} // Provide a temp ID since RecipeForm expects the full Recipe type
-            onSave={handleSaveRecipe}
-            onCancel={handleCancel}
-            isSaving={isCreating}
-            isDeleting={false}
-            error={statusType === 'error' ? statusMessage : null}
-          />
-        </div>
-      )}
-
-      {/* Display status messages only when not showing the form and a message exists */}
-      {!importedRecipe && statusMessage && (
-        <div className={`mt-4 p-3 rounded text-center ${
-          statusType === 'error' ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-green-100 text-green-800 border border-green-300'
+      {/* Status Message */}
+      {statusMessage && (
+        <div className={`mb-6 p-4 rounded-md ${
+          statusType === 'error' 
+            ? 'bg-red-50 text-red-800 border border-red-200' 
+            : 'bg-green-50 text-green-800 border border-green-200'
         }`}>
           {statusMessage}
         </div>
       )}
+
+      {/* Recipe Form */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold mb-4">
+          {importedRecipe ? 'Review Imported Recipe' : 'Manual Entry'}
+        </h2>
+        <RecipeForm
+          initialRecipe={{
+            id: 'temp-id', // Temporary ID since RecipeForm expects it
+            ...(importedRecipe || defaultRecipe)
+          }}
+          onSave={handleSaveRecipe}
+          onCancel={handleCancelForm}
+          isSaving={isCreating}
+          isDeleting={false}
+          error={statusType === 'error' ? statusMessage : null}
+        />
+      </div>
     </div>
   );
 };
