@@ -14,8 +14,17 @@ export async function GET(request: Request, context: { params: { id: string } })
   console.log(`[GET /api/recipe/{id}] Context:`, JSON.stringify(context));
   
   // Extract the ID from the URL path parameter
-  const id = context?.params?.id;
-  console.log(`[GET /api/recipe/{id}] Request received. ID from context.params: "${id}" (type: ${typeof id})`);
+  let id = context?.params?.id;
+  
+  // Fallback: extract ID from URL pathname if context.params is not working
+  if (!id) {
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    id = pathSegments[pathSegments.length - 1]; // Get the last segment
+    console.log(`[GET /api/recipe/{id}] Fallback: extracted ID from URL: "${id}"`);
+  }
+  
+  console.log(`[GET /api/recipe/{id}] Request received. ID: "${id}" (type: ${typeof id})`);
   
   // Also log the URL to check if ID is in the path
   const url = new URL(request.url);
@@ -55,8 +64,17 @@ export async function GET(request: Request, context: { params: { id: string } })
 // --- DELETE Handler (Delete Recipe) ---
 export async function DELETE(request: Request, context: { params: { id: string } }): Promise<NextResponse> {
   // Extract the ID from the URL path parameter
-  const id = context?.params?.id;
-  console.log(`[DELETE /api/recipe/{id}] Request received. ID from context.params: "${id}" (type: ${typeof id})`);
+  let id = context?.params?.id;
+  
+  // Fallback: extract ID from URL pathname if context.params is not working
+  if (!id) {
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    id = pathSegments[pathSegments.length - 1]; // Get the last segment
+    console.log(`[DELETE /api/recipe/{id}] Fallback: extracted ID from URL: "${id}"`);
+  }
+  
+  console.log(`[DELETE /api/recipe/{id}] Request received. ID: "${id}" (type: ${typeof id})`);
   
   // Also log the URL to check if ID is in the path
   const url = new URL(request.url);
@@ -84,8 +102,17 @@ export async function DELETE(request: Request, context: { params: { id: string }
 // --- PUT Handler (Update Recipe) ---
 export async function PUT(request: Request, context: { params: { id: string } }): Promise<NextResponse> {
   // Extract the ID from the URL path parameter
-  const id = context?.params?.id;
-  console.log(`[PUT /api/recipe/{id}] Request received. ID from context.params: "${id}" (type: ${typeof id})`);
+  let id = context?.params?.id;
+  
+  // Fallback: extract ID from URL pathname if context.params is not working
+  if (!id) {
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    id = pathSegments[pathSegments.length - 1]; // Get the last segment
+    console.log(`[PUT /api/recipe/{id}] Fallback: extracted ID from URL: "${id}"`);
+  }
+  
+  console.log(`[PUT /api/recipe/{id}] Request received. ID: "${id}" (type: ${typeof id})`);
   
   // Also log the URL to check if ID is in the path
   const url = new URL(request.url);
