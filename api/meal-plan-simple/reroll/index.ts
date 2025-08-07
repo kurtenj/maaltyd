@@ -1,42 +1,10 @@
 // Simple version of the meal plan reroll API
 
 import { NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
+import { RecipeSchema_Simple } from '../../../src/utils/apiSchemas';
+import { redis, RECIPE_PREFIX, MEAL_PLAN_KEY } from '../../../src/utils/redisClient';
 import { MealPlan } from '../../../src/types/mealPlan';
 import { Recipe } from '../../../src/types/recipe';
-import { z } from 'zod';
-
-// Initialize Redis
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL || '',
-  token: process.env.KV_REST_API_TOKEN || '',
-});
-
-const MEAL_PLAN_KEY = 'mealplan:current';
-const RECIPE_PREFIX = 'recipe:';
-
-// --- Schemas (Copied from api/recipes.ts for validation) ---
-const standardUnitsTuple_Simple: [string, ...string[]] = [
-    '', 'tsp', 'tbsp', 'fl oz', 'cup', 'pint', 'quart', 'gallon', 
-    'ml', 'l', 'oz', 'lb', 'g', 'kg', 
-    'pinch', 'dash', 'clove', 'slice', 'servings'
-];
-
-const IngredientSchema_Simple = z.object({
-  name: z.string().min(1),
-  quantity: z.number().positive(),
-  unit: z.enum(standardUnitsTuple_Simple).optional(),
-});
-
-const RecipeSchema_Simple = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  main: z.string().min(1),
-  other: z.array(IngredientSchema_Simple).min(1),
-  instructions: z.array(z.string().min(1)).min(1),
-  excludeFromMealPlan: z.boolean().optional(),
-});
-// --- End Schemas ---
 
 export async function PUT(request: Request) {
   console.log('[api/meal-plan-simple/reroll] PUT request received');
