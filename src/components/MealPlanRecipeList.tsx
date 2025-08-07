@@ -1,6 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ROUTES } from '../utils/navigation';
 import { DAY_NAMES } from '../utils/constants';
 import Button from './Button';
 import RecipeCard from './RecipeCard';
@@ -21,16 +19,16 @@ const MealPlanRecipeList: React.FC<MealPlanRecipeListProps> = ({
   onGenerateNew
 }) => {
   return (
-    <div className="bg-white p-6 rounded-lg shadow border border-stone-200">
-      <h2 className="text-2xl font-semibold mb-4 text-stone-900">Recipes</h2>
+    <div>
+      <h2 className="text-2xl font-semibold text-stone-900"> Weekly Recipes</h2>
       
       {/* Recipe Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 mb-6">
         {recipes.map((recipe, index) => (
           <div key={`${recipe.id}-${index}-${DAY_NAMES[index]}`} className="relative">
             {/* Day Label */}
             <div className="absolute top-2 left-2 z-10">
-              <span className="bg-emerald-600 text-white px-2 py-1 rounded text-xs font-medium uppercase tracking-wider">
+              <span className="bg-violet-500 text-white px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
                 {DAY_NAMES[index]}
               </span>
             </div>
@@ -41,7 +39,7 @@ const MealPlanRecipeList: React.FC<MealPlanRecipeListProps> = ({
                 variant="icon"
                 onClick={() => onReroll(index)}
                 disabled={isLoading}
-                className="p-1.5 rounded-full bg-white/90 backdrop-blur-sm text-stone-500 hover:bg-white hover:text-emerald-700 focus:ring-emerald-600 shadow-sm"
+                className="p-1.5 rounded-full bg-stone-200 text-stone-500 hover:text-stone-800 focus:ring-emerald-600 border !shadow-none"
                 title="Re-roll this recipe"
                 aria-label="Re-roll this recipe"
               >

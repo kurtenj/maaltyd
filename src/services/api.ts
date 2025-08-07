@@ -1,6 +1,6 @@
 import { MealPlan } from '../types/mealPlan';
 import { Recipe } from '../types/recipe';
-import { logger } from '../utils/logger';
+
 
 /**
  * API request options with standardized cache prevention

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
-import { useRecipes } from "../hooks/useRecipes";
 import { Recipe } from "../types/recipe";
 import Button from "../components/Button";
 import RecipeForm from "../components/RecipeForm";

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRecipes } from '../hooks/useRecipes';
 import RecipeCard from '../components/RecipeCard';
 import { ROUTES } from '../utils/navigation';
-import { Search, Filter, Plus } from 'lucide-react';
+
 import Button from '../components/Button';
 import Input from '../components/Input';
 import MealPlanSummary from '../components/MealPlanSummary';
@@ -21,10 +21,10 @@ const HomePage: React.FC = () => {
   } = useRecipes();
 
   return (
-    <div className="min-h-screen container mx-auto">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">My Recipes</h1>
+      <div className="flex items-center justify-between mb-6 pt-4">
+        <h2 className="text-2xl font-semibold text-stone-900">All Recipes</h2>
       </div>
 
       {/* Meal Plan Summary */}

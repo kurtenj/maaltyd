@@ -24,7 +24,6 @@ const MealPlanPage: React.FC = () => {
 
   return (
     <div className="min-h-screen p-4">
-      <h1 className="text-3xl font-bold mb-6 text-stone-900">7-Day Meal Plan</h1>
       
       {/* Error Display */}
       {error && <MealPlanErrorState error={error} />}

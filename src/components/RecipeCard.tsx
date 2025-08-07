@@ -16,13 +16,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe }) => {
     <Link
       key={recipe.id}
       to={`/recipe/${recipe.id}`}
-      className="block hover:shadow-lg transition-shadow duration-200 ease-in-out rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 overflow-hidden relative"
+      className="block hover:shadow-md transition-all duration-200 ease-in-out rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 overflow-hidden relative border border-stone-200 hover:border-stone-300 bg-white"
     >
       {/* Meal Plan Exclusion Badge */}
       {recipe.excludeFromMealPlan && (
-        <div className="absolute top-2 right-2 z-10 bg-stone-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+        <div className="absolute top-2 right-2 z-10 bg-stone-200 text-stone-500 text-xs px-2 py-1 rounded-sm flex items-center gap-1">
           <CalendarX className="h-3 w-3" />
-          <span>No Meal Plan</span>
+          <span>Exclude</span>
         </div>
       )}
 
