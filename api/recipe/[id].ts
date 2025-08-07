@@ -44,6 +44,7 @@ const RecipeSchema = z.object({
   main: z.string().min(1),
   other: z.array(IngredientSchema).min(1),
   instructions: z.array(z.string().min(1)).min(1),
+  excludeFromMealPlan: z.boolean().optional(),
 });
 const RecipeUpdateSchema = RecipeSchema.omit({ id: true });
 // --- End Schemas ---

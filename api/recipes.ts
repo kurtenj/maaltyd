@@ -54,6 +54,7 @@ const RecipeSchema = z.object({
   main: z.string().min(1),
   other: z.array(IngredientSchema).min(1),
   instructions: z.array(z.string().min(1)).min(1), // Ensure instructions aren't empty
+  excludeFromMealPlan: z.boolean().optional(), // Optional flag to exclude from meal planning
 });
 
 // Schema for validating data during creation (ID is generated, not provided)

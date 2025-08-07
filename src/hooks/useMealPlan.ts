@@ -8,140 +8,110 @@ interface UseMealPlanReturn {
   mealPlan: MealPlan | null;
   isLoading: boolean;
   error: string | null;
-  fetchMealPlan: () => Promise<void>;
   generateNewMealPlan: () => Promise<void>;
   rerollRecipeInPlan: (recipeIndex: number) => Promise<void>;
-  toggleShoppingListItem: (itemName: string, currentStatus: boolean) => Promise<void>;
 }
 
 export function useMealPlan(): UseMealPlanReturn {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch the current meal plan on initial load
-  const fetchMealPlan = useCallback(async () => {
-    logger.log('useMealPlan', 'Fetching current meal plan...');
-    setIsLoading(true);
-    setError(null);
-    const [data, fetchError] = await tryCatchAsync(
-      mealPlanApi.get,
-      'useMealPlan', 
-      'Failed to fetch meal plan'
-    );
+  // Fetch meal plan on mount
+  useEffect(() => {
+    const fetchMealPlan = async () => {
+      logger.log('useMealPlan', 'Fetching meal plan...');
+      setIsLoading(true);
+      setError(null);
 
-    if (fetchError) {
-      if (fetchError.message.includes('Not found') || fetchError.message.includes('404')) {
-        logger.log('useMealPlan', 'No existing meal plan found.');
-        setMealPlan(null); // Explicitly set to null if not found
-      } else {
+      const [result, fetchError] = await tryCatchAsync(
+        () => mealPlanApi.get(),
+        'useMealPlan',
+        'Failed to fetch meal plan'
+      );
+
+      if (fetchError) {
         logger.error('useMealPlan', 'Error fetching meal plan:', fetchError);
         setError(fetchError.message);
         setMealPlan(null);
+      } else {
+        logger.log('useMealPlan', 'Meal plan fetched successfully:', result);
+        setMealPlan(result);
       }
-    } else if (data) {
-      logger.log('useMealPlan', 'Meal plan fetched successfully.');
-      setMealPlan(data);
-    }
-    setIsLoading(false);
-  }, []);
 
-  useEffect(() => {
+      setIsLoading(false);
+    };
+
     fetchMealPlan();
-  }, [fetchMealPlan]);
+  }, []);
 
   // Generate a new meal plan
   const generateNewMealPlan = useCallback(async () => {
     logger.log('useMealPlan', 'Generating new meal plan...');
     setIsLoading(true);
     setError(null);
-    const [newPlan, genError] = await tryCatchAsync(
-      mealPlanApi.generate,
-      'useMealPlan', 
-      'Failed to generate new meal plan'
+
+    const [result, generateError] = await tryCatchAsync(
+      () => mealPlanApi.generate(),
+      'useMealPlan',
+      'Failed to generate meal plan'
     );
 
-    if (genError) {
-      logger.error('useMealPlan', 'Error generating meal plan:', genError);
-      setError(genError.message);
-      setMealPlan(null);
-    } else if (newPlan) {
-      logger.log('useMealPlan', 'New meal plan generated successfully.');
-      setMealPlan(newPlan);
+    if (generateError) {
+      logger.error('useMealPlan', 'Error generating meal plan:', generateError);
+      setError(generateError.message);
+    } else {
+      logger.log('useMealPlan', 'New meal plan generated successfully:', result);
+      setMealPlan(result);
     }
+
     setIsLoading(false);
   }, []);
 
-  // Re-roll a recipe in the current plan
+  // Re-roll a single recipe in the meal plan
   const rerollRecipeInPlan = useCallback(async (recipeIndex: number) => {
-    if (!mealPlan) {
-      setError('Cannot re-roll: No current meal plan exists.');
-      return;
-    }
+    if (!mealPlan) return;
+
     logger.log('useMealPlan', `Re-rolling recipe at index ${recipeIndex}...`);
     setIsLoading(true);
     setError(null);
-    
-    const [updatedPlan, rerollError] = await tryCatchAsync(
-      () => mealPlanApi.rerollRecipe(mealPlan, recipeIndex),
-      'useMealPlan', 
-      'Failed to re-roll recipe'
-    );
 
-    if (rerollError) {
-      logger.error('useMealPlan', 'Error re-rolling recipe:', rerollError);
-      setError(rerollError.message);
-      // Keep the old plan state on error? Or clear it?
-    } else if (updatedPlan) {
-      logger.log('useMealPlan', 'Recipe re-rolled successfully.');
-      setMealPlan(updatedPlan);
-    }
-    setIsLoading(false);
-  }, [mealPlan]); // Dependency on mealPlan is important here
-
-  // Toggle the acquired status of a shopping list item
-  const toggleShoppingListItem = useCallback(async (itemName: string, currentStatus: boolean) => {
-    if (!mealPlan) return; // Should not happen if UI is correct
-
-    const newStatus = !currentStatus;
     // Optimistically update UI first
     const originalPlan = mealPlan;
     setMealPlan(prevPlan => {
       if (!prevPlan) return null;
       return {
         ...prevPlan,
-        shoppingList: prevPlan.shoppingList.map(item => 
-          item.name === itemName ? { ...item, acquired: newStatus } : item
+        recipes: prevPlan.recipes.map((recipe, index) => 
+          index === recipeIndex ? { ...recipe, title: 'Loading...' } : recipe
         ),
       };
     });
 
-    logger.log('useMealPlan', `Toggling status for item "${itemName}" to ${newStatus}...`);
-    const [_result, updateError] = await tryCatchAsync(
-      () => mealPlanApi.updateShoppingItemStatus(itemName, newStatus),
-      'useMealPlan', 
-      `Failed to update status for item "${itemName}"`
+    const [result, rerollError] = await tryCatchAsync(
+      () => mealPlanApi.rerollRecipe(mealPlan, recipeIndex),
+      'useMealPlan',
+      `Failed to re-roll recipe at index ${recipeIndex}`
     );
 
-    if (updateError) {
-      logger.error('useMealPlan', `Error updating item "${itemName}":`, updateError);
-      setError(updateError.message);
+    if (rerollError) {
+      logger.error('useMealPlan', `Error re-rolling recipe at index ${recipeIndex}:`, rerollError);
+      setError(rerollError.message);
       // Revert optimistic update on error
       setMealPlan(originalPlan);
     } else {
-      logger.log('useMealPlan', `Item "${itemName}" status updated successfully on backend.`);
-      // State is already updated optimistically
+      logger.log('useMealPlan', `Recipe at index ${recipeIndex} re-rolled successfully:`, result);
+      setMealPlan(result);
     }
-    // Potentially remove error message after a short delay?
-  }, [mealPlan]); // Dependency on mealPlan
+
+    setIsLoading(false);
+  }, [mealPlan]);
 
   return {
     mealPlan,
     isLoading,
     error,
-    fetchMealPlan, // Expose fetch if manual refresh is needed
     generateNewMealPlan,
     rerollRecipeInPlan,
-    toggleShoppingListItem,
   };
 } 

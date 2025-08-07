@@ -16,7 +16,6 @@ const RecipeDetailPage: React.FC = () => {
   const params = useParams<{ recipeId: string }>();
   const recipeId = params.recipeId;
 
-  const { refetchRecipes } = useRecipes();
   const navigate = useNavigate();
   const { userId } = useAuth();
 
@@ -101,7 +100,6 @@ const RecipeDetailPage: React.FC = () => {
         setEditError(error.message);
         setIsDeleting(false);
       } else {
-        refetchRecipes();
         navigate(ROUTES.HOME);
       }
     }

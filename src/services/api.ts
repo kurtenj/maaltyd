@@ -1,5 +1,6 @@
+import { MealPlan } from '../types/mealPlan';
 import { Recipe } from '../types/recipe';
-import { MealPlan, ShoppingListItem } from '../types/mealPlan';
+import { logger } from '../utils/logger';
 
 /**
  * API request options with standardized cache prevention
@@ -161,21 +162,5 @@ export const mealPlanApi = {
       }),
     });
     return handleApiResponse<MealPlan>(response);
-  },
-
-  /**
-   * Update the acquired status of a shopping list item
-   */
-  async updateShoppingItemStatus(itemName: string, acquired: boolean): Promise<{ message: string, item: ShoppingListItem }> {
-    const response = await fetch('/api/meal-plan-simple/shopping-list', {
-      ...NO_CACHE_OPTIONS,
-      method: 'PATCH',
-      headers: {
-        ...NO_CACHE_OPTIONS.headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ itemName, acquired }),
-    });
-    return handleApiResponse<{ message: string, item: ShoppingListItem }>(response);
   }
 }; 

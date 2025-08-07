@@ -27,7 +27,8 @@ const AddRecipePage: React.FC = () => {
     title: '',
     main: '',
     other: [{ name: '', quantity: 0, unit: '' }],
-    instructions: ['']
+    instructions: [''],
+    excludeFromMealPlan: false
   };
   
   // State for form/saving
@@ -36,7 +37,6 @@ const AddRecipePage: React.FC = () => {
   const [statusType, setStatusType] = useState<'error' | 'success'>('success');
   
   const navigate = useNavigate();
-  const { refetchRecipes } = useRecipes();
   const { isSignedIn, isLoaded, userId } = useAuth();
 
   /**
@@ -124,8 +124,9 @@ const AddRecipePage: React.FC = () => {
 
     if (newRecipe) {
       logger.log('AddRecipePage', 'Recipe created successfully:', newRecipe);
-      await refetchRecipes(); // Refresh the recipes list
-      navigate(ROUTES.HOME); // Redirect to home page or recipe detail page
+      // The original code had refetchRecipes here, but it's not available in useRecipes hook
+      // For now, we'll just navigate to home or recipe detail page
+      navigate(ROUTES.HOME); 
     }
 
     setIsCreating(false);

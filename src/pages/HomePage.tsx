@@ -1,8 +1,12 @@
-import React from "react";
-import { useRecipes } from "../hooks/useRecipes";
-import RecipeList from "../components/RecipeList";
-import MealPlanSummary from "../components/MealPlanSummary";
-import Input from "../components/Input";
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useRecipes } from '../hooks/useRecipes';
+import RecipeCard from '../components/RecipeCard';
+import { ROUTES } from '../utils/navigation';
+import { Search, Filter, Plus } from 'lucide-react';
+import Button from '../components/Button';
+import Input from '../components/Input';
+import MealPlanSummary from '../components/MealPlanSummary';
 
 const HomePage: React.FC = () => {
   const {
@@ -18,34 +22,43 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen container mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">My Recipes</h1>
+      </div>
+
+      {/* Meal Plan Summary */}
       <MealPlanSummary />
 
       {/* Search Input and Recipe List Area */}
       <div className="mt-8">
         {/* Filter Controls: Search and Main Ingredient Select */}
-        <div className="flex flex-start gap-2 mb-6 items-center">
-          <Input
-            type="text"
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-2/3 shadow-sm"
-          />
-          <select
-            value={selectedMainIngredient || ""} // Use empty string for "All" option
-            onChange={(e) => handleMainIngredientChange(e.target.value || null)} // Pass null if empty string selected
-            className="w-1/3 h-8 px-3 py-1 border border-stone-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-stone-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="">All</option>
-            {availableMainIngredients.map((ingredient) => (
-              <option key={ingredient} value={ingredient}>
-                {ingredient}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col gap-3 mb-6">
+          {/* Search and Main Ingredient Row */}
+          <div className="flex gap-2 items-center">
+            <Input
+              type="text"
+              placeholder="Search recipes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-2/3 shadow-sm"
+            />
+            <select
+              value={selectedMainIngredient || ""}
+              onChange={(e) => handleMainIngredientChange(e.target.value || null)}
+              className="w-1/3 h-8 px-3 py-1 border border-stone-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-stone-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">All Ingredients</option>
+              {availableMainIngredients.map((ingredient) => (
+                <option key={ingredient} value={ingredient}>
+                  {ingredient}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Error Display - Simplified condition */}
+        {/* Error Display */}
         {error && (
           <div className="mb-4 p-4 text-center text-red-800 bg-red-100 border border-red-300 rounded">
             Error loading recipes: {error}
@@ -57,9 +70,26 @@ const HomePage: React.FC = () => {
           <p className="text-center text-stone-500 italic">
             Loading recipes...
           </p>
+        ) : filteredRecipes.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-stone-500 mb-4">
+              {searchTerm || selectedMainIngredient 
+                ? 'No recipes match your search criteria.' 
+                : 'No recipes found. Add your first recipe to get started!'
+              }
+            </p>
+            {!searchTerm && !selectedMainIngredient && (
+              <Link to={ROUTES.ADD_RECIPE}>
+                <Button variant="primary">Add Your First Recipe</Button>
+              </Link>
+            )}
+          </div>
         ) : (
-          // Display RecipeList even if there's an error, will show "No recipes found" if filteredRecipes is empty.
-          <RecipeList recipes={filteredRecipes} />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredRecipes.map((recipe) => (
+              <RecipeCard key={recipe.id} recipe={recipe} />
+            ))}
+          </div>
         )}
       </div>
     </div>
