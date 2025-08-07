@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
-import { useRecipes } from "../hooks/useRecipes";
 import { Recipe } from "../types/recipe";
 import Button from "../components/Button";
 import RecipeForm from "../components/RecipeForm";
@@ -16,7 +15,6 @@ const RecipeDetailPage: React.FC = () => {
   const params = useParams<{ recipeId: string }>();
   const recipeId = params.recipeId;
 
-  const { refetchRecipes } = useRecipes();
   const navigate = useNavigate();
   const { userId } = useAuth();
 
@@ -101,7 +99,6 @@ const RecipeDetailPage: React.FC = () => {
         setEditError(error.message);
         setIsDeleting(false);
       } else {
-        refetchRecipes();
         navigate(ROUTES.HOME);
       }
     }

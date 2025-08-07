@@ -33,3 +33,6 @@ export const STANDARD_UNITS = [
   'servings',   // Add 'servings' as the new standard/fallback
   ''            // Explicitly allow empty string for truly unitless items
 ].sort(); // Keep sorted for display 
+
+// Day names for meal planning
+export const DAY_NAMES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const; 

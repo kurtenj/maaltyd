@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import logoSrc from '../assets/logo.svg'; // Use SVG logo
 import { ROUTES } from '../utils/navigation';
-import { CalendarHeart } from 'lucide-react'; // Import the icon
+import { CalendarHeart, Plus } from 'lucide-react'; // Import the icons
 
 const Header: React.FC = () => {
   return (
@@ -20,9 +20,10 @@ const Header: React.FC = () => {
           <SignedIn>
             <Link 
               to={ROUTES.ADD_RECIPE} 
-              className="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-3 md:px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
+              className="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white p-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 transition duration-150 ease-in-out"
+              title="Add new recipe"
             >
-               New<span className="hidden md:inline">&nbsp;Recipe</span>
+              <Plus className="h-4 w-4" />
             </Link>
           </SignedIn>
           

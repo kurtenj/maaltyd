@@ -1,71 +1,30 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.development.local' }); // Load env vars for local dev
 
-// Use Upstash SDK
-import { Redis } from '@upstash/redis';
-// Remove @vercel/kv import
-// import { kv } from '@vercel/kv';
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-// Corrected import path again for route.ts location
+import { RecipeSchema, RecipeUpdateSchema } from '../../src/utils/apiSchemas';
+import { redis, getRecipeKey } from '../../src/utils/redisClient';
 import type { Recipe } from '../../src/types/recipe';
-// Remove import for recipe actions
-// import { deleteRecipeAction, updateRecipeAction } from '../../../lib/recipeActions';
 
-// Initialize Redis client with proper URL prefixing
-const redisUrl = process.env.KV_REST_API_URL || '';
-const redisToken = process.env.KV_REST_API_TOKEN || '';
-
-// Add a check immediately after initialization
-if (!redisUrl || !redisToken) {
-  console.error('CRITICAL: Redis URL or Token is missing from environment variables!');
-}
-
-// Initialize the Redis client properly
-const redis = new Redis({
-  url: redisUrl,  // Must be a complete URL
-  token: redisToken,
-});
-
-console.log(`[api/recipe/[id].ts] Initializing Redis with URL: ${redisUrl ? redisUrl : 'MISSING!'}`);
-
-const RECIPE_PREFIX = 'recipe:';
-
-// --- Schemas ---
-// Define these once, outside handlers
-const IngredientSchema = z.object({
-  name: z.string().min(1),
-  quantity: z.union([z.string().min(1), z.number()]),
-  unit: z.string().optional(),
-});
-const RecipeSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  main: z.string().min(1),
-  other: z.array(IngredientSchema).min(1),
-  instructions: z.array(z.string().min(1)).min(1),
-});
-const RecipeUpdateSchema = RecipeSchema.omit({ id: true });
-// --- End Schemas ---
-
-// Define the structure of the second argument (context)
-interface HandlerContext {
-  params: { id: string };
-}
-
-// Remove or comment out to use default Node.js runtime
-// export const runtime = 'edge';
-
-console.log('--- !!! api/recipe/[id].ts TOP LEVEL EXECUTION (Explicit Redis Init) !!! ---');
+console.log('--- !!! api/recipe/[id].ts TOP LEVEL EXECUTION (Shared Redis Init) !!! ---');
 
 // --- GET Handler (Get Single Recipe) ---
-export async function GET(request: Request, context: HandlerContext): Promise<NextResponse> {
+export async function GET(request: Request, context: { params: { id: string } }): Promise<NextResponse> {
   // Log full context to debug
   console.log(`[GET /api/recipe/{id}] Context:`, JSON.stringify(context));
   
   // Extract the ID from the URL path parameter
-  const id = context?.params?.id;
-  console.log(`[GET /api/recipe/{id}] Request received. ID from context.params: "${id}" (type: ${typeof id})`);
+  let id = context?.params?.id;
+  
+  // Fallback: extract ID from URL pathname if context.params is not working
+  if (!id) {
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    id = pathSegments[pathSegments.length - 1]; // Get the last segment
+    console.log(`[GET /api/recipe/{id}] Fallback: extracted ID from URL: "${id}"`);
+  }
+  
+  console.log(`[GET /api/recipe/{id}] Request received. ID: "${id}" (type: ${typeof id})`);
   
   // Also log the URL to check if ID is in the path
   const url = new URL(request.url);
@@ -74,7 +33,7 @@ export async function GET(request: Request, context: HandlerContext): Promise<Ne
   if (!id) {
     return NextResponse.json({ message: 'Recipe ID is required.' }, { status: 400 });
   }
-  const key = `${RECIPE_PREFIX}${id}`;
+  const key = getRecipeKey(id);
 
   try {
     console.log(`[GET /api/recipe/{id}] Fetching key: ${key}`);
@@ -103,10 +62,19 @@ export async function GET(request: Request, context: HandlerContext): Promise<Ne
 }
 
 // --- DELETE Handler (Delete Recipe) ---
-export async function DELETE(request: Request, context: HandlerContext): Promise<NextResponse> {
+export async function DELETE(request: Request, context: { params: { id: string } }): Promise<NextResponse> {
   // Extract the ID from the URL path parameter
-  const id = context?.params?.id;
-  console.log(`[DELETE /api/recipe/{id}] Request received. ID from context.params: "${id}" (type: ${typeof id})`);
+  let id = context?.params?.id;
+  
+  // Fallback: extract ID from URL pathname if context.params is not working
+  if (!id) {
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    id = pathSegments[pathSegments.length - 1]; // Get the last segment
+    console.log(`[DELETE /api/recipe/{id}] Fallback: extracted ID from URL: "${id}"`);
+  }
+  
+  console.log(`[DELETE /api/recipe/{id}] Request received. ID: "${id}" (type: ${typeof id})`);
   
   // Also log the URL to check if ID is in the path
   const url = new URL(request.url);
@@ -115,7 +83,7 @@ export async function DELETE(request: Request, context: HandlerContext): Promise
   if (!id) {
     return NextResponse.json({ message: 'Recipe ID is required.' }, { status: 400 });
   }
-  const key = `${RECIPE_PREFIX}${id}`;
+  const key = getRecipeKey(id);
 
   try {
     const result = await redis.del(key);
@@ -132,10 +100,19 @@ export async function DELETE(request: Request, context: HandlerContext): Promise
 }
 
 // --- PUT Handler (Update Recipe) ---
-export async function PUT(request: Request, context: HandlerContext): Promise<NextResponse> {
+export async function PUT(request: Request, context: { params: { id: string } }): Promise<NextResponse> {
   // Extract the ID from the URL path parameter
-  const id = context?.params?.id;
-  console.log(`[PUT /api/recipe/{id}] Request received. ID from context.params: "${id}" (type: ${typeof id})`);
+  let id = context?.params?.id;
+  
+  // Fallback: extract ID from URL pathname if context.params is not working
+  if (!id) {
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    id = pathSegments[pathSegments.length - 1]; // Get the last segment
+    console.log(`[PUT /api/recipe/{id}] Fallback: extracted ID from URL: "${id}"`);
+  }
+  
+  console.log(`[PUT /api/recipe/{id}] Request received. ID: "${id}" (type: ${typeof id})`);
   
   // Also log the URL to check if ID is in the path
   const url = new URL(request.url);
@@ -144,7 +121,7 @@ export async function PUT(request: Request, context: HandlerContext): Promise<Ne
   if (!id) {
     return NextResponse.json({ message: 'Recipe ID is required.' }, { status: 400 });
   }
-  const key = `${RECIPE_PREFIX}${id}`;
+  const key = getRecipeKey(id);
 
   let requestBody: unknown;
   try {

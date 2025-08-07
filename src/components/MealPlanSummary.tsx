@@ -80,7 +80,7 @@ const MealPlanSummary: React.FC = () => {
   // Loading State
   if (isLoading) {
     return (
-      <div className="mb-6 p-4 bg-white rounded-lg shadow border border-stone-200 flex items-center justify-center h-24">
+      <div className="mb-6 p-4 bg-white rounded-lg shadow border border-stone-200 flex items-center justify-center h-24 w-full md:w-auto md:max-w-md">
         <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-3" />
         <span className="text-stone-600">Loading meal plan...</span>
       </div>
@@ -91,7 +91,7 @@ const MealPlanSummary: React.FC = () => {
   if (error && !mealPlan) {
     // Only show full error if no plan is loaded at all
     return (
-      <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200 flex items-center h-24">
+      <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200 flex items-center h-24 w-full md:w-auto md:max-w-md">
         <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
         <span className="text-sm text-red-800">
           Error loading meal plan: {error}
@@ -103,7 +103,7 @@ const MealPlanSummary: React.FC = () => {
   // No Meal Plan State
   if (!mealPlan) {
     return (
-      <div className="mb-6 p-4 bg-white rounded-lg shadow border border-stone-200 text-center h-24 flex flex-col items-center justify-center">
+      <div className="mb-6 p-4 bg-white rounded-lg shadow border border-stone-200 text-center h-24 flex flex-col items-center justify-center w-full md:w-auto md:max-w-md">
         <p className="text-stone-600 mb-3">No meal plan generated yet.</p>
         <Link
           to={ROUTES.MEAL_PLAN}
@@ -118,7 +118,7 @@ const MealPlanSummary: React.FC = () => {
 
   // Meal Plan Exists - Display New Summary Layout
   return (
-    <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-stone-200">
+    <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border border-stone-200 w-full md:w-auto md:max-w-md">
       <div className="flex justify-between items-center">
         <h2 className="text-md font-bold mb-1 capitalize text-stone-800">
           {dateRangeTitle}

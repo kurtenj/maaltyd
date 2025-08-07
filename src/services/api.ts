@@ -1,5 +1,6 @@
+import { MealPlan } from '../types/mealPlan';
 import { Recipe } from '../types/recipe';
-import { MealPlan, ShoppingListItem } from '../types/mealPlan';
+
 
 /**
  * API request options with standardized cache prevention
@@ -63,7 +64,7 @@ export const recipeApi = {
    * Get single recipe by ID
    */
   async getById(id: string): Promise<Recipe> {
-    const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, NO_CACHE_OPTIONS);
+    const response = await fetch(`/api/recipe/${encodeURIComponent(id)}`, NO_CACHE_OPTIONS);
     return handleApiResponse<Recipe>(response);
   },
   
@@ -88,7 +89,7 @@ export const recipeApi = {
    * Update existing recipe
    */
   async update(id: string, recipe: Recipe, userId?: string | null): Promise<Recipe> {
-    const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, {
+    const response = await fetch(`/api/recipe/${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'PUT',
       headers: {
@@ -105,7 +106,7 @@ export const recipeApi = {
    * Delete recipe
    */
   async delete(id: string, userId?: string | null): Promise<void> {
-    const response = await fetch(`/api/recipe-by-id?id=${encodeURIComponent(id)}`, {
+    const response = await fetch(`/api/recipe/${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'DELETE',
       headers: {
@@ -161,21 +162,5 @@ export const mealPlanApi = {
       }),
     });
     return handleApiResponse<MealPlan>(response);
-  },
-
-  /**
-   * Update the acquired status of a shopping list item
-   */
-  async updateShoppingItemStatus(itemName: string, acquired: boolean): Promise<{ message: string, item: ShoppingListItem }> {
-    const response = await fetch('/api/meal-plan-simple/shopping-list', {
-      ...NO_CACHE_OPTIONS,
-      method: 'PATCH',
-      headers: {
-        ...NO_CACHE_OPTIONS.headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ itemName, acquired }),
-    });
-    return handleApiResponse<{ message: string, item: ShoppingListItem }>(response);
   }
 }; 

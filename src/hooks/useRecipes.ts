@@ -100,6 +100,5 @@ export function useRecipes() {
     selectedMainIngredient,
     availableMainIngredients,
     handleMainIngredientChange,
-    refetchRecipes: fetchRecipes,
   };
 }
