@@ -7,7 +7,7 @@ import { CalendarHeart, Plus } from 'lucide-react'; // Import the icons
 
 const Header: React.FC = () => {
   return (
-    <header className="bg-stone-50 p-4 md:px-8 border-b border-stone-200 sticky top-0 z-10">
+    <header className="bg-stone-50 p-4 md:px-8 border-b border-stone-200 sticky top-0 z-50">
       <div className="container mx-auto flex justify-between items-center">
         {/* Logo linking to home */}
         <Link to={ROUTES.HOME} className="flex items-center">
