@@ -13,6 +13,7 @@ export function useRecipes() {
   const [selectedMainIngredient, setSelectedMainIngredient] = useState<
     string | null
   >(null);
+  const [quickActionFilter, setQuickActionFilter] = useState<'cook' | 'bake' | null>(null);
 
   // Function to fetch recipes from the backend
   const fetchRecipes = useCallback(async () => {
@@ -62,14 +63,27 @@ export function useRecipes() {
 
     let recipesToFilter = allRecipes;
 
-    // 1. Filter by selectedMainIngredient
+    // 1. Filter by quick action (Cook or Bake)
+    if (quickActionFilter === 'cook') {
+      // Cook: all recipes except those with flour as main ingredient
+      recipesToFilter = recipesToFilter.filter(
+        (recipe) => recipe.main.toLowerCase() !== 'flour'
+      );
+    } else if (quickActionFilter === 'bake') {
+      // Bake: recipes with flour as main ingredient
+      recipesToFilter = recipesToFilter.filter(
+        (recipe) => recipe.main.toLowerCase() === 'flour'
+      );
+    }
+
+    // 2. Filter by selectedMainIngredient
     if (selectedMainIngredient) {
       recipesToFilter = recipesToFilter.filter(
         (recipe) => recipe.main === selectedMainIngredient
       );
     }
 
-    // 2. Filter by searchTerm (title)
+    // 3. Filter by searchTerm (title)
     if (searchTerm) {
       recipesToFilter = recipesToFilter.filter((recipe) =>
         recipe.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -84,10 +98,15 @@ export function useRecipes() {
     fetchAttempted,
     searchTerm,
     selectedMainIngredient,
+    quickActionFilter,
   ]);
 
   const handleMainIngredientChange = (mainIngredient: string | null) => {
     setSelectedMainIngredient(mainIngredient);
+  };
+
+  const handleQuickActionToggle = (action: 'cook' | 'bake' | null) => {
+    setQuickActionFilter(action);
   };
 
   return {
@@ -100,6 +119,8 @@ export function useRecipes() {
     selectedMainIngredient,
     availableMainIngredients,
     handleMainIngredientChange,
+    quickActionFilter,
+    handleQuickActionToggle,
     fetchRecipes, // Expose fetchRecipes for manual refresh
   };
 }
