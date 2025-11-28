@@ -2,8 +2,11 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.development.local' }); // Load env vars for local dev
 
 import { NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 import { RecipeCreateSchema, RecipeSchema } from '../src/utils/apiSchemas';
 import { redis, RECIPE_PREFIX } from '../src/utils/redisClient';
+import { fetchAllRecipes } from '../src/utils/recipeFetcher';
+import { verifyAuth } from '../src/utils/auth';
 import type { Recipe } from '../src/types/recipe';
 
 console.log('--- !!! api/recipes.ts TOP LEVEL EXECUTION (Shared Redis Init) !!! ---');
@@ -12,42 +15,12 @@ console.log('--- !!! api/recipes.ts TOP LEVEL EXECUTION (Shared Redis Init) !!! 
 export async function GET(_request: Request): Promise<NextResponse> {
   console.log(`[api/recipes]: GET request received (using @upstash/redis).`);
 
-  console.log('[api/recipes]: Attempting to get recipe keys from Redis using SCAN...');
   try {
-    const recipeKeys: string[] = [];
-    let cursor: string | number = 0;
-    do {
-      const [nextCursorStr, keys] = await redis.scan(cursor as number, { match: `${RECIPE_PREFIX}*` });
-      recipeKeys.push(...keys);
-      cursor = nextCursorStr;
-    } while (cursor !== '0');
-
-    console.log(`[api/recipes]: Found ${recipeKeys.length} recipe keys via SCAN.`);
-
-    if (recipeKeys.length === 0) {
-      return NextResponse.json([]);
-    }
-
-    console.log(`[api/recipes]: Fetching ${recipeKeys.length} recipes using mget...`);
-    const recipesData = await redis.mget<Recipe[]>(...recipeKeys);
-    console.log(`[api/recipes]: Received ${recipesData ? recipesData.length : 'null'} results from mget.`);
-    
-    // Filter out nulls (recipes not found) and invalid data
-    const validRecipes = recipesData.filter((recipe, index) => {
-      const key = recipeKeys[index] || 'unknown_key';
-      if (!recipe) {
-         console.warn(`[api/recipes] Null recipe data found for key index ${index}. Skipping.`);
-         return false;
-      }
-      const result = RecipeSchema.safeParse(recipe);
-      if (!result.success) {
-        console.warn(`[api/recipes] Invalid recipe data found for key ${key}, skipping: ${JSON.stringify(recipe)}. Error:`, result.error.flatten());
-        return false;
-      }
-      return true;
+    const validRecipes = await fetchAllRecipes({
+      schema: RecipeSchema,
+      logContext: 'api/recipes',
     });
 
-    console.log(`[api/recipes]: Returning ${validRecipes.length} valid recipes.`);
     return NextResponse.json(validRecipes);
 
   } catch (error: unknown) {
@@ -61,8 +34,8 @@ export async function GET(_request: Request): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   console.log(`[api/recipes]: POST request received (using @upstash/redis).`);
 
-  // Check Clerk authentication
-  const userId = request.headers.get('x-clerk-user-id');
+  // Verify Clerk authentication
+  const userId = await verifyAuth(request);
   
   if (!userId) {
     console.log('[POST /api/recipes]: No authenticated user found');
@@ -91,7 +64,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const validatedData = validationResult.data;
-  const newId = Date.now().toString(); // Simple unique ID
+  const newId = uuidv4(); // Generate UUID for unique ID
   const key = `${RECIPE_PREFIX}${newId}`;
 
   console.log(`[api/recipes POST]: Generated unique ID: ${newId} and key: ${key}`);
@@ -104,9 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     // Use redis.set with 'nx' option to only set if the key doesn't exist
     console.log(`[api/recipes POST]: Saving new recipe to Redis key: ${key} (if not exists)`);
-    // redis.set returns the object if NX fails, null if NX succeeds
-    const setResult = await redis.set(key, newRecipe, { nx: true }); 
-    // console.log(`[api/recipes POST]: redis.set nx result for key ${key}:`, setResult); // Remove potentially broken log
+    const setResult = await redis.set(key, newRecipe, { nx: true });
 
     // If setResult is NOT null, it means the key already existed (NX failed)
     if (setResult !== 'OK') { 

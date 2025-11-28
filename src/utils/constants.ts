@@ -1,16 +1,3 @@
-export const PANTRY_STAPLES = [
-  'salt',
-  'pepper',
-  'black pepper',
-  'olive oil',
-  'vegetable oil',
-  'canola oil',
-  'sugar',
-  'water',
-  'flour', // Debatable, could be project-specific
-  // Add more common staples as needed
-];
-
 // Standardized Measurement Units
 export const STANDARD_UNITS = [
   'tsp',        // Teaspoon
@@ -33,6 +20,3 @@ export const STANDARD_UNITS = [
   'servings',   // Add 'servings' as the new standard/fallback
   ''            // Explicitly allow empty string for truly unitless items
 ].sort(); // Keep sorted for display 
-
-// Day names for meal planning
-export const DAY_NAMES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const; 

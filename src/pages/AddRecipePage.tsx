@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-// Assuming recipeApi.create exists and POSTs to /api/recipes
-// If not, we can use direct fetch
-import { recipeApi } from '../services/api'; // Adjust if path is different
-
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { recipeApi } from '../services/api';
 import { logger } from '../utils/logger';
 import { tryCatchAsync } from '../utils/errorHandling';
 import { ROUTES } from '../utils/navigation';
-// Import the Recipe type
 import type { Recipe } from '../types/recipe';
 import RecipeForm from '../components/RecipeForm';
 import { useAuth } from '@clerk/clerk-react';
@@ -27,8 +22,7 @@ const AddRecipePage: React.FC = () => {
     title: '',
     main: '',
     other: [{ name: '', quantity: 0, unit: '' }],
-    instructions: [''],
-    excludeFromMealPlan: false
+    instructions: ['']
   };
   
   // State for form/saving

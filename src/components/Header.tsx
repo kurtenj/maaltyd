@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import logoSrc from '../assets/logo.svg'; // Use SVG logo
 import { ROUTES } from '../utils/navigation';
-import { CalendarHeart, Plus } from 'lucide-react'; // Import the icons
+import { Plus } from 'lucide-react'; // Import the icons
 
 const Header: React.FC = () => {
   return (
@@ -26,15 +26,6 @@ const Header: React.FC = () => {
               <Plus className="h-4 w-4" />
             </Link>
           </SignedIn>
-          
-          {/* Meal Plan - Always visible */}
-          <Link 
-            to={ROUTES.MEAL_PLAN} // Assuming MEAL_PLAN route is defined
-            className="inline-flex items-center justify-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150 ease-in-out text-white bg-emerald-800 hover:bg-emerald-700 focus:ring-emerald-600"
-          >
-            <CalendarHeart className="mr-2 h-4 w-4" />
-            Plan
-          </Link>
           
           {/* Clerk Auth Components */}
           <SignedOut>

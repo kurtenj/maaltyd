@@ -7,19 +7,12 @@ import type { Recipe } from '../../src/types/recipe';
 import OpenAI from 'openai';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-// import { Readability } from '@mozilla/readability'; // Remove unused import
-// import { JSDOM } from 'jsdom'; // Remove unused import
-// import { STANDARD_UNITS } from '../../src/utils/constants'; // Remove unused import
+import { verifyAuth } from '../../src/utils/auth';
 
 // Initialize OpenAI client
 const openai = process.env.OPENAI_API_KEY 
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) 
   : null;
-
-// Initialize Clerk client
-// const clerk = createClerkClient({
-//   secretKey: process.env.CLERK_SECRET_KEY!,
-// });
 
 // Zod enum validation for units
 const standardUnitsTuple: [string, ...string[]] = [
@@ -52,8 +45,8 @@ const RecipeSchema = z.object({
 export async function POST(request: Request): Promise<NextResponse> {
   console.log(`[api/scrape-recipe]: POST request received`);
   
-  // Check Clerk authentication via headers (works with Vercel)
-  const userId = request.headers.get('x-clerk-user-id');
+  // Verify Clerk authentication
+  const userId = await verifyAuth(request);
   
   if (!userId) {
     console.log('[api/scrape-recipe]: No authenticated user found');
@@ -481,216 +474,3 @@ async function processRecipeWithOpenAI(recipeText: string, prompt: string): Prom
     throw error;
   }
 }
-
-/**
- * Extract recipe data from HTML content
- * This is a simplified version that uses basic string manipulation
- * A production version would use more sophisticated parsing techniques
- * 
- * @deprecated This function is not currently used; recipe extraction is handled by the OpenAI model
- */
-function _extractRecipeData(html: string, sourceUrl: string): Omit<Recipe, 'id'> {
-  console.log(`[api/scrape-recipe]: Extracting recipe data from HTML content`);
-  
-  // Basic extraction logic - this is just a placeholder
-  // In a real implementation, you'd use JSON-LD parsing, HTML parsing libraries, etc.
-  
-  // Search for a recipe title - looking for common patterns
-  const title = extractMetaTag(html, 'og:title') || 
-              extractMetaTag(html, 'twitter:title') || 
-              extractByClass(html, 'recipe-title') ||
-              extractByClass(html, 'entry-title') ||
-              'Imported Recipe';
-  
-  // Extract main ingredient (using the first found ingredient or a default)
-  const mainIngredient = extractFirstIngredient(html) || 'Main Ingredient';
-  
-  // Extract other ingredients
-  const ingredients = extractIngredients(html);
-  const otherIngredients = ingredients.slice(1).map(name => ({
-    name, 
-    quantity: 1, 
-    unit: ''
-  }));
-  
-  // If no ingredients were found, add a placeholder
-  if (otherIngredients.length === 0) {
-    otherIngredients.push({
-      name: 'Ingredient (please edit)',
-      quantity: 1,
-      unit: ''
-    });
-  }
-  
-  // Extract instructions
-  const instructions = extractInstructions(html);
-  
-  // If no instructions were found, add a placeholder
-  if (instructions.length === 0) {
-    instructions.push('Step 1: Prepare the ingredients');
-    instructions.push('Step 2: Cook according to preference');
-    instructions.push(`Imported from: ${sourceUrl}`);
-  } else {
-    // Add source URL as the last instruction
-    instructions.push(`Imported from: ${sourceUrl}`);
-  }
-  
-  console.log(`[api/scrape-recipe]: Extracted recipe data with title: "${title}"`);
-  
-  return {
-    title: sanitizeText(title),
-    main: sanitizeText(mainIngredient),
-    other: otherIngredients,
-    instructions: instructions.map(sanitizeText)
-  };
-}
-
-/**
- * Helper functions for extracting data from HTML
- */
-
-// Extract content from meta tags
-function extractMetaTag(html: string, property: string): string | null {
-  const regex = new RegExp(`<meta\\s+property=["']${property}["']\\s+content=["']([^"']+)["']`, 'i');
-  const match = html.match(regex);
-  return match ? match[1] : null;
-}
-
-// Extract content by class name (very basic implementation)
-function extractByClass(html: string, className: string): string | null {
-  const regex = new RegExp(`<[^>]+class=["'][^"']*${className}[^"']*["'][^>]*>([^<]+)`, 'i');
-  const match = html.match(regex);
-  return match ? match[1].trim() : null;
-}
-
-// Extract the first ingredient
-function extractFirstIngredient(html: string): string | null {
-  // Look for common ingredient list patterns
-  const ingredientListRegex = /<ul[^>]*class=["'][^"']*ingredient[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i;
-  const ingredientListMatch = html.match(ingredientListRegex);
-  
-  if (ingredientListMatch && ingredientListMatch[1]) {
-    const ingredientItemRegex = /<li[^>]*>([\s\S]*?)<\/li>/i;
-    const ingredientMatch = ingredientListMatch[1].match(ingredientItemRegex);
-    
-    if (ingredientMatch && ingredientMatch[1]) {
-      return stripHtmlTags(ingredientMatch[1]).trim();
-    }
-  }
-  
-  return null;
-}
-
-// Extract all ingredients
-function extractIngredients(html: string): string[] {
-  const ingredients: string[] = [];
-  
-  // Look for ingredient lists
-  const ingredientListRegex = /<ul[^>]*class=["'][^"']*ingredient[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i;
-  const ingredientListMatch = html.match(ingredientListRegex);
-  
-  if (ingredientListMatch && ingredientListMatch[1]) {
-    const ingredientItemRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
-    let match;
-    
-    while ((match = ingredientItemRegex.exec(ingredientListMatch[1])) !== null) {
-      if (match[1]) {
-        ingredients.push(stripHtmlTags(match[1]).trim());
-      }
-    }
-  }
-  
-  // If no ingredients found through class, try JSON-LD structured data
-  if (ingredients.length === 0) {
-    const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i;
-    const jsonLdMatch = html.match(jsonLdRegex);
-    
-    if (jsonLdMatch && jsonLdMatch[1]) {
-      try {
-        const jsonData = JSON.parse(jsonLdMatch[1]);
-        if (jsonData.recipeIngredient && Array.isArray(jsonData.recipeIngredient)) {
-          return jsonData.recipeIngredient;
-        }
-      } catch (e) {
-        console.error('[api/scrape-recipe]: Error parsing JSON-LD:', e);
-      }
-    }
-  }
-  
-  // If still no ingredients, add placeholders
-  if (ingredients.length === 0) {
-    ingredients.push('Main Ingredient');
-    ingredients.push('Secondary Ingredient');
-  }
-  
-  return ingredients;
-}
-
-// Extract instructions
-function extractInstructions(html: string): string[] {
-  const instructions: string[] = [];
-  
-  // Look for instruction lists
-  const instructionListRegex = /<ol[^>]*class=["'][^"']*instruction[^"']*["'][^>]*>([\s\S]*?)<\/ol>/i;
-  const instructionListMatch = html.match(instructionListRegex);
-  
-  if (instructionListMatch && instructionListMatch[1]) {
-    const instructionItemRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
-    let match;
-    
-    while ((match = instructionItemRegex.exec(instructionListMatch[1])) !== null) {
-      if (match[1]) {
-        instructions.push(stripHtmlTags(match[1]).trim());
-      }
-    }
-  }
-  
-  // If no instructions found through class, try JSON-LD structured data
-  if (instructions.length === 0) {
-    const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i;
-    const jsonLdMatch = html.match(jsonLdRegex);
-    
-    if (jsonLdMatch && jsonLdMatch[1]) {
-      try {
-        const jsonData = JSON.parse(jsonLdMatch[1]);
-        
-        // Handle different structured data formats
-        if (jsonData.recipeInstructions) {
-          if (Array.isArray(jsonData.recipeInstructions)) {
-            jsonData.recipeInstructions.forEach((instruction: string | { text: string }) => {
-              if (typeof instruction === 'string') {
-                instructions.push(instruction);
-              } else if (instruction.text) {
-                instructions.push(instruction.text);
-              }
-            });
-          }
-        }
-      } catch (e) {
-        console.error('[api/scrape-recipe]: Error parsing JSON-LD:', e);
-      }
-    }
-  }
-  
-  return instructions;
-}
-
-// Strip HTML tags from a string
-function stripHtmlTags(html: string): string {
-  return html.replace(/<[^>]*>/g, '');
-}
-
-// Sanitize text to remove problematic characters
-function sanitizeText(text: string): string {
-  if (!text) return '';
-  
-  return text
-    .trim()
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
-    .replace(/&amp;/g, '&') // Replace HTML entities
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-} 

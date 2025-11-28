@@ -16,7 +16,7 @@ const RecipeDetailPage: React.FC = () => {
   const recipeId = params.recipeId;
 
   const navigate = useNavigate();
-  const { userId } = useAuth();
+  const { userId, isLoaded } = useAuth();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isFetchingDetails, setIsFetchingDetails] = useState<boolean>(true);
@@ -46,6 +46,16 @@ const RecipeDetailPage: React.FC = () => {
 
   const handleSave = async (updatedRecipe: Recipe) => {
     if (!recipeId) return;
+    
+    if (!isLoaded) {
+      setEditError('Please wait for authentication to load.');
+      return;
+    }
+    
+    if (!userId) {
+      setEditError('You must be signed in to update recipes.');
+      return;
+    }
 
     setIsSaving(true);
     setEditError(null);
@@ -75,6 +85,16 @@ const RecipeDetailPage: React.FC = () => {
         "Delete attempt failed: Recipe or Recipe ID not available."
       );
       setEditError("Cannot delete recipe: Recipe data is missing.");
+      return;
+    }
+
+    if (!isLoaded) {
+      setEditError('Please wait for authentication to load.');
+      return;
+    }
+    
+    if (!userId) {
+      setEditError('You must be signed in to delete recipes.');
       return;
     }
 
@@ -227,10 +247,6 @@ const RecipeDetailPage: React.FC = () => {
 
           {/* Main recipe content */}
           <div className="bg-white p-5 rounded-lg shadow-sm border border-stone-200">
-            {!recipe && !isFetchingDetails && (
-              <p className="text-center text-red-500">Recipe not found.</p>
-            )}
-
             {recipe &&
               editableRecipe &&
               (isEditing ? (

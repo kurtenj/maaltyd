@@ -11,7 +11,6 @@ export const ROUTES = {
   HOME: '/',
   RECIPE_DETAIL: (id: string) => `/recipe/${id}`,
   ADD_RECIPE: '/add-recipe',
-  MEAL_PLAN: '/meal-plan',
 } as const;
 
 /**

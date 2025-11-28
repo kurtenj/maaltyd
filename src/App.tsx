@@ -10,9 +10,6 @@ function App() {
         <Outlet />
       </main>
       <Footer />
-      {/* Consistent Footer Style (Commented Out) 
-      <footer className="bg-stone-100 p-4 text-center text-sm text-stone-600">Footer Content</footer>
-      */}
     </div>
   )
 }

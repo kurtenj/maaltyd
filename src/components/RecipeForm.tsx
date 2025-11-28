@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Recipe, Ingredient } from "../types/recipe";
 import Button from "./Button";
 import Input from "./Input";
-import MealPlanToggle from "./MealPlanToggle";
 import { Trash2 } from "lucide-react";
 import { STANDARD_UNITS } from "../utils/constants";
 
@@ -268,13 +267,6 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
           Add Instruction
         </Button>
       </div>
-
-      {/* Meal Plan Toggle */}
-      <MealPlanToggle
-        value={recipe.excludeFromMealPlan || false}
-        onChange={(excludeFromMealPlan) => setRecipe({ ...recipe, excludeFromMealPlan })}
-        disabled={isSaving || isDeleting}
-      />
 
       {/* Form Buttons */}
       <div className="flex justify-start space-x-3 pt-4 border-t border-stone-200">
