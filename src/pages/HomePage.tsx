@@ -112,12 +112,12 @@ const HomePage: React.FC = () => {
         ) : filteredRecipes.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-stone-500 mb-4">
-              {searchTerm || selectedMainIngredient 
+              {searchTerm || selectedMainIngredient || quickActionFilter
                 ? 'No recipes match your search criteria.' 
                 : 'No recipes found. Add your first recipe to get started!'
               }
             </p>
-            {!searchTerm && !selectedMainIngredient && (
+            {!searchTerm && !selectedMainIngredient && !quickActionFilter && (
               <Link to={ROUTES.ADD_RECIPE}>
                 <Button variant="primary">Add Your First Recipe</Button>
               </Link>
