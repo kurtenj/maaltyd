@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { useRecipes } from '../hooks/useRecipes';
 import RecipeCard from '../components/RecipeCard';
 import { ROUTES } from '../utils/navigation';
+import { Beef, CakeSlice } from 'lucide-react';
 
 import Button from '../components/Button';
 import Input from '../components/Input';
+import { ToggleGroup, ToggleGroupItem } from '../components/ToggleGroup';
 
 const HomePage: React.FC = () => {
   const {
@@ -17,12 +19,53 @@ const HomePage: React.FC = () => {
     selectedMainIngredient,
     availableMainIngredients,
     handleMainIngredientChange,
+    quickActionFilter,
+    handleQuickActionToggle,
   } = useRecipes();
 
   return (
     <div className="min-h-screen">
+      {/* Quick Action Toggle Group */}
+      <div className="mb-6 pt-4">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="lg"
+          value={quickActionFilter}
+          onValueChange={(value) => handleQuickActionToggle(value as 'cook' | 'bake' | null)}
+          className="w-full gap-0"
+        >
+          <ToggleGroupItem 
+            value="cook" 
+            className={`flex-1 rounded-l-lg rounded-r-none ${
+              quickActionFilter === 'cook' || quickActionFilter === 'bake'
+                ? 'border-r border-emerald-500' 
+                : 'border-r-0'
+            }`}
+          >
+            {quickActionFilter === 'cook' && (
+              <Beef className="mr-2 h-5 w-5 animate-fade-in" />
+            )}
+            <span className="transition-all duration-200">Cook</span>
+          </ToggleGroupItem>
+          <ToggleGroupItem 
+            value="bake" 
+            className={`flex-1 rounded-r-lg rounded-l-none ${
+              quickActionFilter === 'cook' || quickActionFilter === 'bake'
+                ? 'border-l border-emerald-500'
+                : ''
+            }`}
+          >
+            {quickActionFilter === 'bake' && (
+              <CakeSlice className="mr-2 h-5 w-5 animate-fade-in" />
+            )}
+            <span className="transition-all duration-200">Bake</span>
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 pt-4">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold text-stone-900">All Recipes</h2>
       </div>
 
@@ -69,12 +112,12 @@ const HomePage: React.FC = () => {
         ) : filteredRecipes.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-stone-500 mb-4">
-              {searchTerm || selectedMainIngredient 
+              {searchTerm || selectedMainIngredient || quickActionFilter
                 ? 'No recipes match your search criteria.' 
                 : 'No recipes found. Add your first recipe to get started!'
               }
             </p>
-            {!searchTerm && !selectedMainIngredient && (
+            {!searchTerm && !selectedMainIngredient && !quickActionFilter && (
               <Link to={ROUTES.ADD_RECIPE}>
                 <Button variant="primary">Add Your First Recipe</Button>
               </Link>
