@@ -1,4 +1,3 @@
-import { MealPlan } from '../types/mealPlan';
 import { Recipe } from '../types/recipe';
 
 
@@ -119,48 +118,5 @@ export const recipeApi = {
     }
     
     return handleApiResponse<void>(response);
-  }
-};
-
-/**
- * Meal Plan API functions
- */
-export const mealPlanApi = {
-  /**
-   * Get the current meal plan
-   */
-  async get(): Promise<MealPlan> {
-    const response = await fetch('/api/meal-plan-simple', NO_CACHE_OPTIONS);
-    return handleApiResponse<MealPlan>(response);
-  },
-
-  /**
-   * Generate a new meal plan (overwrites existing)
-   */
-  async generate(): Promise<MealPlan> {
-    const response = await fetch('/api/meal-plan-simple', {
-      ...NO_CACHE_OPTIONS,
-      method: 'POST',
-    });
-    return handleApiResponse<MealPlan>(response);
-  },
-
-  /**
-   * Re-roll a single recipe in the current meal plan
-   */
-  async rerollRecipe(currentPlan: MealPlan, recipeIndex: number): Promise<MealPlan> {
-    const response = await fetch('/api/meal-plan-simple/reroll', {
-      ...NO_CACHE_OPTIONS,
-      method: 'PUT',
-      headers: {
-        ...NO_CACHE_OPTIONS.headers,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        currentPlan: currentPlan, 
-        recipeIndexToReplace: recipeIndex 
-      }),
-    });
-    return handleApiResponse<MealPlan>(response);
   }
 }; 

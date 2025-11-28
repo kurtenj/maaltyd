@@ -17,7 +17,6 @@ export const redis = new Redis({
 
 // Common Redis key prefixes
 export const RECIPE_PREFIX = 'recipe:';
-export const MEAL_PLAN_KEY = 'mealplan:current';
 
 // Helper function to get recipe key
 export const getRecipeKey = (id: string) => `${RECIPE_PREFIX}${id}`;

@@ -6,7 +6,6 @@ import { ROUTES } from '../utils/navigation';
 
 import Button from '../components/Button';
 import Input from '../components/Input';
-import MealPlanSummary from '../components/MealPlanSummary';
 
 const HomePage: React.FC = () => {
   const {
@@ -26,9 +25,6 @@ const HomePage: React.FC = () => {
       <div className="flex items-center justify-between mb-6 pt-4">
         <h2 className="text-2xl font-semibold text-stone-900">All Recipes</h2>
       </div>
-
-      {/* Meal Plan Summary */}
-      <MealPlanSummary />
 
       {/* Search Input and Recipe List Area */}
       <div className="mt-8">

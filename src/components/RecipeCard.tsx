@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Recipe } from "../types/recipe";
 import RecipeImagePlaceholder from "./RecipeImagePlaceholder";
 import { logger } from "../utils/logger";
-import { CalendarX } from "lucide-react";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -18,14 +17,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe }) => {
       to={`/recipe/${recipe.id}`}
       className="block hover:shadow-md transition-all duration-200 ease-in-out rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 overflow-hidden relative border border-stone-200 hover:border-stone-300 bg-white"
     >
-      {/* Meal Plan Exclusion Badge */}
-      {recipe.excludeFromMealPlan && (
-        <div className="absolute top-2 right-2 z-10 bg-stone-200 text-stone-500 text-xs px-2 py-1 rounded-sm flex items-center gap-1">
-          <CalendarX className="h-3 w-3" />
-          <span>Exclude</span>
-        </div>
-      )}
-
       <div className="flex h-full">
         {/* Image Section (Square) */}
         <div className="w-28 h-28 flex-shrink-0">

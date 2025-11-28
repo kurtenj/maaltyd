@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
+    "dev:vercel": "vercel dev",
     "start": "npm run dev",
     "build": "vite build",
     "lint": "eslint . -c eslint.config.mjs",

@@ -7,17 +7,4 @@ export default defineConfig({
   plugins: [
     react(),
   ],
-  // Remove optimizeDeps and ssr sections
-  // optimizeDeps: {
-  //  include: [
-  //      '@testing-library/jest-dom', 
-  //      'vitest-fetch-mock'
-  //  ]
-  // },
-  // ssr: {
-  //   noExternal: [
-  //     '@testing-library/jest-dom', 
-  //     'vitest-fetch-mock'
-  //   ]
-  // }
 });

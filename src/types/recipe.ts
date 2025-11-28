@@ -16,5 +16,4 @@ export interface Recipe {
   main: string;
   other: Ingredient[]; // Changed to array of Ingredient objects
   instructions: string[];
-  excludeFromMealPlan?: boolean; // Optional flag to exclude from meal planning
 } 
