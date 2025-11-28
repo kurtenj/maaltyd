@@ -127,6 +127,11 @@ export async function PUT(request: Request, context: { params: { id: string } })
     return NextResponse.json({ message: 'Invalid JSON in request body.' }, { status: 400 });
   }
 
+  // Validate that requestBody is an object (not null, not array, not primitive)
+  if (requestBody === null || typeof requestBody !== 'object' || Array.isArray(requestBody)) {
+    return NextResponse.json({ message: 'Request body must be an object.' }, { status: 400 });
+  }
+
   // Strip out the 'id' field from request body since it comes from the URL
   const { id: _id, ...bodyWithoutId } = requestBody as { id?: string; [key: string]: unknown };
   

@@ -88,6 +88,16 @@ const RecipeDetailPage: React.FC = () => {
       return;
     }
 
+    if (!isLoaded) {
+      setEditError('Please wait for authentication to load.');
+      return;
+    }
+    
+    if (!userId) {
+      setEditError('You must be signed in to delete recipes.');
+      return;
+    }
+
     if (
       window.confirm(
         "Are you sure you want to delete this recipe? This cannot be undone."
