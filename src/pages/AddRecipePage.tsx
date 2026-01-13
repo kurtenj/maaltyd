@@ -102,16 +102,6 @@ const AddRecipePage: React.FC = () => {
     setStatusMessage('Creating recipe...');
     setStatusType('success');
 
-    // Log the recipe data being sent for debugging
-    logger.log('AddRecipePage', 'Attempting to create recipe:', {
-      title: recipe.title,
-      main: recipe.main,
-      otherCount: recipe.other.length,
-      instructionsCount: recipe.instructions.length,
-      other: recipe.other,
-      instructions: recipe.instructions,
-    });
-
     // Validate recipe data before sending
     const validationErrors: string[] = [];
     
@@ -154,25 +144,39 @@ const AddRecipePage: React.FC = () => {
       return;
     }
 
-    const [newRecipe, createError] = await tryCatchAsync(
-      () => recipeApi.create(recipe, userId),
-      'AddRecipePage',
-      'Failed to create recipe'
-    );
+    let newRecipe: Recipe | null = null;
+    let createError: Error | null = null;
+    
+    try {
+      newRecipe = await recipeApi.create(recipe, userId);
+    } catch (error) {
+      logger.error('AddRecipePage', 'Error creating recipe:', error);
+      createError = error instanceof Error ? error : new Error(String(error));
+    }
 
     if (createError) {
-      logger.error('AddRecipePage', 'Error creating recipe:', createError);
-      logger.error('AddRecipePage', 'Error details:', createError.details);
+      // Try to extract the actual error message from the API response
+      let errorMessage = 'Unknown error occurred';
       
-      // Try to extract more detailed error message from API response
-      let errorMessage = createError.message;
-      if (createError.details && typeof createError.details === 'object') {
-        const details = createError.details as { message?: string; errors?: unknown };
-        if (details.errors) {
-          errorMessage = `${createError.message}\n\nValidation errors: ${JSON.stringify(details.errors, null, 2)}`;
-        } else if (details.message) {
-          errorMessage = details.message;
+      // Check if error has a response property (from handleApiResponse)
+      if (createError && typeof createError === 'object' && 'response' in createError) {
+        const response = (createError as { response?: unknown }).response;
+        
+        if (response && typeof response === 'object') {
+          if ('message' in response && typeof response.message === 'string') {
+            errorMessage = response.message;
+          } else if ('errors' in response) {
+            // Handle validation errors
+            const errors = response.errors;
+            if (errors && typeof errors === 'object') {
+              const errorDetails = JSON.stringify(errors, null, 2);
+              errorMessage = `Validation failed:\n${errorDetails}`;
+            }
+          }
         }
+      } else if (createError.message) {
+        // Fall back to error message
+        errorMessage = createError.message;
       }
       
       setStatusMessage(`Failed to create recipe: ${errorMessage}`);

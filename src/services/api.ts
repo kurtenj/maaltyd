@@ -38,20 +38,28 @@ async function handleApiResponse<T>(response: Response): Promise<T> {
     try {
       const errorJson = JSON.parse(rawResponseText);
       // Create an error with more details
-      const error = new Error(errorJson.message || `HTTP error! Status: ${response.status}`);
+      const errorMessage = errorJson.message || `HTTP error! Status: ${response.status}`;
+      const error = new Error(errorMessage);
+      
       // Attach the full error response for better debugging
       (error as Error & { response?: unknown }).response = errorJson;
+      
       throw error;
     } catch (parseError) {
       // If parsing fails, include the raw response text
-      const error = new Error(`HTTP error! Status: ${response.status}. Response: ${rawResponseText}`);
+      const errorMessage = `HTTP error! Status: ${response.status}. Response: ${rawResponseText.substring(0, 200)}`;
+      const error = new Error(errorMessage);
       (error as Error & { response?: unknown }).response = { raw: rawResponseText };
       throw error;
     }
   }
   
   // If response was ok, now parse the text as JSON
-  return JSON.parse(rawResponseText);
+  try {
+    return JSON.parse(rawResponseText);
+  } catch (parseError) {
+    throw new Error('Failed to parse API response');
+  }
 }
 
 /**
