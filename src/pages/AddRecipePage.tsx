@@ -21,7 +21,7 @@ const AddRecipePage: React.FC = () => {
   const defaultRecipe: Omit<Recipe, 'id'> = {
     title: '',
     main: '',
-    other: [{ name: '', quantity: 0, unit: '' }],
+    other: [{ name: '', quantity: 1, unit: '' }],
     instructions: ['']
   };
   
@@ -102,6 +102,58 @@ const AddRecipePage: React.FC = () => {
     setStatusMessage('Creating recipe...');
     setStatusType('success');
 
+    // Log the recipe data being sent for debugging
+    logger.log('AddRecipePage', 'Attempting to create recipe:', {
+      title: recipe.title,
+      main: recipe.main,
+      otherCount: recipe.other.length,
+      instructionsCount: recipe.instructions.length,
+      other: recipe.other,
+      instructions: recipe.instructions,
+    });
+
+    // Validate recipe data before sending
+    const validationErrors: string[] = [];
+    
+    if (!recipe.title.trim()) {
+      validationErrors.push('Title is required');
+    }
+    
+    if (!recipe.main.trim()) {
+      validationErrors.push('Main ingredient is required');
+    }
+    
+    if (recipe.other.length === 0) {
+      validationErrors.push('At least one ingredient is required');
+    }
+    
+    recipe.other.forEach((ingredient, index) => {
+      if (!ingredient.name.trim()) {
+        validationErrors.push(`Ingredient ${index + 1}: name is required`);
+      }
+      if (ingredient.quantity <= 0) {
+        validationErrors.push(`Ingredient ${index + 1}: quantity must be greater than 0`);
+      }
+    });
+    
+    if (recipe.instructions.length === 0) {
+      validationErrors.push('At least one instruction is required');
+    }
+    
+    recipe.instructions.forEach((instruction, index) => {
+      if (!instruction.trim()) {
+        validationErrors.push(`Instruction ${index + 1} cannot be empty`);
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      logger.error('AddRecipePage', 'Validation errors:', validationErrors);
+      setStatusMessage(`Please fix the following errors:\n${validationErrors.join('\n')}`);
+      setStatusType('error');
+      setIsCreating(false);
+      return;
+    }
+
     const [newRecipe, createError] = await tryCatchAsync(
       () => recipeApi.create(recipe, userId),
       'AddRecipePage',
@@ -110,7 +162,20 @@ const AddRecipePage: React.FC = () => {
 
     if (createError) {
       logger.error('AddRecipePage', 'Error creating recipe:', createError);
-      setStatusMessage(`Failed to create recipe: ${createError.message}`);
+      logger.error('AddRecipePage', 'Error details:', createError.details);
+      
+      // Try to extract more detailed error message from API response
+      let errorMessage = createError.message;
+      if (createError.details && typeof createError.details === 'object') {
+        const details = createError.details as { message?: string; errors?: unknown };
+        if (details.errors) {
+          errorMessage = `${createError.message}\n\nValidation errors: ${JSON.stringify(details.errors, null, 2)}`;
+        } else if (details.message) {
+          errorMessage = details.message;
+        }
+      }
+      
+      setStatusMessage(`Failed to create recipe: ${errorMessage}`);
       setStatusType('error');
       setIsCreating(false);
       return;
@@ -212,7 +277,7 @@ const AddRecipePage: React.FC = () => {
 
       {/* Status Message */}
       {statusMessage && (
-        <div className={`mb-6 p-4 rounded-md ${
+        <div className={`mb-6 p-4 rounded-md whitespace-pre-line ${
           statusType === 'error' 
             ? 'bg-red-50 text-red-800 border border-red-200' 
             : 'bg-green-50 text-green-800 border border-green-200'

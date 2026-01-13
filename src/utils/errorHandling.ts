@@ -38,10 +38,21 @@ export function handleError(module: string, error: unknown, userMessage?: string
   // Format the error message for the UI
   const formattedMessage = userMessage || formatErrorMessage(error);
   
+  // Extract additional details from the error
+  let details: unknown = error instanceof Error ? { name: error.name, stack: error.stack } : error;
+  
+  // If the error has a response property (from API errors), include it
+  if (error instanceof Error && 'response' in error) {
+    details = {
+      ...(typeof details === 'object' && details !== null ? details : {}),
+      response: (error as Error & { response?: unknown }).response
+    };
+  }
+  
   // Return a standardized error object
   return {
     message: formattedMessage,
-    details: error instanceof Error ? { name: error.name, stack: error.stack } : error
+    details
   };
 }
 

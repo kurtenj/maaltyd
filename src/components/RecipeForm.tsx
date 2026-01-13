@@ -54,7 +54,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   const addIngredient = () => {
     setRecipe({
       ...recipe,
-      other: [...recipe.other, { name: "", quantity: 1, unit: "" }], // Default new quantity to 1
+      other: [...recipe.other, { name: "", quantity: 1, unit: "" }], // Default new quantity to 1 (must be positive)
     });
   };
 
@@ -163,6 +163,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
                 <Input
                   type="number"
                   step="any"
+                  min="0.01"
                   placeholder="Qty"
                   value={ingredient.quantity === 0 ? "" : ingredient.quantity}
                   onChange={(e) =>
