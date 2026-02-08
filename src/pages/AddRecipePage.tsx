@@ -2,97 +2,28 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { recipeApi } from '../services/api';
 import { logger } from '../utils/logger';
-import { tryCatchAsync } from '../utils/errorHandling';
 import { ROUTES } from '../utils/navigation';
 import type { Recipe } from '../types/recipe';
 import RecipeForm from '../components/RecipeForm';
 import { useAuth } from '@clerk/clerk-react';
 
 /**
- * Add Recipe Page with URL scraping functionality
+ * Add Recipe Page - manual recipe entry
  */
 const AddRecipePage: React.FC = () => {
-  // State for URL input and processing
-  const [recipeUrl, setRecipeUrl] = useState('');
-  const [isScrapingUrl, setIsScrapingUrl] = useState(false);
-  
-  // State for imported recipe
-  const [importedRecipe, setImportedRecipe] = useState<Omit<Recipe, 'id'> | null>(null);
   const defaultRecipe: Omit<Recipe, 'id'> = {
     title: '',
     main: '',
     other: [{ name: '', quantity: 1, unit: '' }],
     instructions: ['']
   };
-  
-  // State for form/saving
+
   const [isCreating, setIsCreating] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'error' | 'success'>('success');
-  
+
   const navigate = useNavigate();
   const { isSignedIn, isLoaded, userId } = useAuth();
-
-  /**
-   * Handle importing recipe from URL
-   */
-  const handleImportFromUrl = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    
-    if (!recipeUrl.trim()) {
-      setStatusMessage('Please enter a valid recipe URL');
-      setStatusType('error');
-      return;
-    }
-
-    if (!isSignedIn) {
-      setStatusMessage('Please sign in to import recipes');
-      setStatusType('error');
-      return;
-    }
-    
-    setIsScrapingUrl(true);
-    setStatusMessage('Importing recipe from URL...');
-    setStatusType('success');
-    
-    try {
-      // Get the user ID from Clerk
-      if (!userId) {
-        throw new Error('User ID not available. Please try signing in again.');
-      }
-
-      const response = await fetch('/api/scrape-recipe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-clerk-user-id': userId,
-        },
-        body: JSON.stringify({ url: recipeUrl }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Error importing recipe: ${response.statusText}`);
-      }
-      
-      const recipeData = await response.json();
-      logger.log('AddRecipePage', 'Recipe data scraped from URL:', recipeData);
-      
-      // Set the imported recipe to display in the form
-      setImportedRecipe(recipeData);
-      setStatusMessage('Recipe imported! Review and make any changes before saving.');
-      setStatusType('success');
-      
-      // Clear the URL field
-      setRecipeUrl('');
-    } catch (error) {
-      logger.error('AddRecipePage', 'Error importing recipe from URL:', error);
-      setStatusMessage(`Failed to import recipe: ${error instanceof Error ? error.message : String(error)}`);
-      setStatusType('error');
-    } finally {
-      setIsScrapingUrl(false);
-    }
-  };
 
   /**
    * Handle creating a new recipe
@@ -208,8 +139,6 @@ const AddRecipePage: React.FC = () => {
    * Handle canceling the form
    */
   const handleCancelForm = () => {
-    // Clear any imported recipe and reset form
-    setImportedRecipe(null);
     setStatusMessage(null);
   };
 
@@ -251,34 +180,6 @@ const AddRecipePage: React.FC = () => {
         </Link>
       </div>
 
-      {/* URL Import Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Import from URL</h2>
-        <form onSubmit={handleImportFromUrl} className="space-y-4">
-          <div>
-            <label htmlFor="recipe-url" className="block text-sm font-medium text-gray-700 mb-1">
-              Recipe URL
-            </label>
-            <input
-              id="recipe-url"
-              type="url"
-              value={recipeUrl}
-              onChange={(e) => setRecipeUrl(e.target.value)}
-              placeholder="https://example.com/recipe"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              disabled={isScrapingUrl}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isScrapingUrl || !recipeUrl.trim()}
-            className="w-full bg-emerald-600 text-white py-2 px-4 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isScrapingUrl ? 'Importing...' : 'Import Recipe'}
-          </button>
-        </form>
-      </div>
-
       {/* Status Message */}
       {statusMessage && (
         <div className={`mb-6 p-4 rounded-md whitespace-pre-line ${
@@ -292,13 +193,11 @@ const AddRecipePage: React.FC = () => {
 
       {/* Recipe Form */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          {importedRecipe ? 'Review Imported Recipe' : 'Manual Entry'}
-        </h2>
+        <h2 className="text-lg font-semibold mb-4">Add Recipe</h2>
         <RecipeForm
           initialRecipe={{
             id: 'temp-id', // Temporary ID since RecipeForm expects it
-            ...(importedRecipe || defaultRecipe)
+            ...defaultRecipe
           }}
           onSave={handleSaveRecipe}
           onCancel={handleCancelForm}

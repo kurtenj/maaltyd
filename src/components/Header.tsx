@@ -7,7 +7,7 @@ import { Plus } from 'lucide-react'; // Import the icons
 
 const Header: React.FC = () => {
   return (
-    <header className="bg-stone-50 p-4 md:px-8 border-b border-stone-200 sticky top-0 z-50">
+    <header className="bg-stone-500/20 p-4 md:px-8 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto flex justify-between items-center">
         {/* Logo linking to home */}
         <Link to={ROUTES.HOME} className="flex items-center">

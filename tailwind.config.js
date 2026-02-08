@@ -7,7 +7,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Nunito Sans', 'sans-serif'],
+        sans: ['Bricolage Grotesque', 'sans-serif'],
       },
     },
   },

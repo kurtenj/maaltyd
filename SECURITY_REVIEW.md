@@ -15,12 +15,11 @@
 ## ⚠️ Potential Security Concerns
 
 ### 1. User ID Logging (Low Risk)
-**Location**: `api/recipes.ts:47`, `api/scrape-recipe/index.ts:58`
+**Location**: `api/recipes.ts:47`
 
 **Issue**: User IDs are logged to console in production:
 ```typescript
 console.log(`[POST /api/recipes]: Authenticated user: ${userId}`);
-console.log(`[api/scrape-recipe]: Authenticated user: ${userId}`);
 ```
 
 **Risk**: Low - User IDs are not highly sensitive, but logging them could be a privacy concern.

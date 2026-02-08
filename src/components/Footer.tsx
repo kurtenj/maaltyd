@@ -1,6 +1,6 @@
 import React from 'react';
 
-const APP_VERSION = 'v0.1.0'; // Hardcode version for now
+const APP_VERSION = 'v1.0.0'; // Hardcode version for now
 
 const Footer: React.FC = () => {
   return (
