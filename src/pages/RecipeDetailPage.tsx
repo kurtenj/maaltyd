@@ -7,7 +7,7 @@ import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
-import { ArrowLeft, Link } from "lucide-react";
+import { ChevronLeft, Link } from "lucide-react";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
 import { SignedIn, useAuth } from '@clerk/clerk-react';
 
@@ -235,9 +235,9 @@ const RecipeDetailPage: React.FC = () => {
           {!isEditing && (
             <RouterLink
               to={ROUTES.HOME}
-              className="inline-flex items-center text-emerald-700 hover:text-emerald-900 mb-4 group text-sm"
+              className="inline-flex items-center text-stone-500 hover:text-stone-800 mb-4 group text-sm"
             >
-              <ArrowLeft
+              <ChevronLeft
                 size={16}
                 className="mr-1 group-hover:-translate-x-1 transition-transform"
               />
@@ -246,7 +246,7 @@ const RecipeDetailPage: React.FC = () => {
           )}
 
           {/* Main recipe content */}
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-stone-200">
+          <div className="bg-white p-5 rounded-xl">
             {recipe &&
               editableRecipe &&
               (isEditing ? (
@@ -258,6 +258,8 @@ const RecipeDetailPage: React.FC = () => {
                   isSaving={isSaving}
                   isDeleting={isDeleting}
                   error={editError}
+                  hideFormButtons
+                  formId="recipe-edit-form"
                 />
               ) : (
                 // --- READ-ONLY MODE ---
@@ -335,13 +337,38 @@ const RecipeDetailPage: React.FC = () => {
           {/* Action Buttons */}
           <SignedIn>
             <div className="flex justify-start space-x-2 pt-4">
-              <Button
-                onClick={handleEdit}
-                variant="primary"
-                className="px-4 py-2"
-              >
-                Edit
-              </Button>
+              {!isEditing && (
+                <Button
+                  onClick={handleEdit}
+                  variant="primary"
+                  className="px-4 py-2"
+                >
+                  Edit
+                </Button>
+              )}
+              {isEditing && (
+                <>
+                  <Button
+                    onClick={handleCancel}
+                    variant="secondary"
+                    className="px-4 py-2"
+                    disabled={isSaving || isDeleting}
+                    type="button"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    form="recipe-edit-form"
+                    variant="primary"
+                    className="px-4 py-2"
+                    disabled={isSaving || isDeleting}
+                    isLoading={isSaving}
+                  >
+                    Save Recipe
+                  </Button>
+                </>
+              )}
               <Button
                 onClick={handleDelete}
                 variant="danger"

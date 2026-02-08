@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
-import logoSrc from '../assets/logo.svg'; // Use SVG logo
+import logoSrc from '../assets/logo.svg';
 import { ROUTES } from '../utils/navigation';
 import { Plus } from 'lucide-react'; // Import the icons
 
@@ -10,8 +10,8 @@ const Header: React.FC = () => {
     <header className="bg-stone-500/20 p-4 md:px-8 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto flex justify-between items-center">
         {/* Logo linking to home */}
-        <Link to={ROUTES.HOME} className="flex items-center">
-          <img src={logoSrc} alt="Maaltyd Logo" className="h-8 w-auto" /> {/* Adjust height as needed */} 
+        <Link to={ROUTES.HOME} className="flex items-center" aria-label="Maaltyd - Home">
+          <img src={logoSrc} alt="Maaltyd Logo" className="h-8 w-auto" />
         </Link>
 
         {/* Navigation Buttons */}

@@ -12,6 +12,10 @@ interface RecipeFormProps {
   isSaving: boolean;
   isDeleting: boolean;
   error: string | null;
+  /** When true, form buttons (Cancel, Save) are not rendered - for use when parent renders them */
+  hideFormButtons?: boolean;
+  /** Form id for external submit button association */
+  formId?: string;
 }
 
 const RecipeForm: React.FC<RecipeFormProps> = ({
@@ -21,6 +25,8 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   isSaving,
   isDeleting,
   error,
+  hideFormButtons = false,
+  formId,
 }) => {
   const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
 
@@ -86,7 +92,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form id={formId} className="space-y-6" onSubmit={handleSubmit}>
       {/* Error Display */}
       {error && (
         <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-300 rounded">
@@ -173,20 +179,23 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
                   disabled={isSaving || isDeleting}
                   required
                 />
-                <select
-                  value={ingredient.unit || ""}
-                  onChange={(e) =>
-                    handleIngredientChange(index, "unit", e.target.value)
-                  }
-                  className="w-24 h-8 px-2 py-1 border border-stone-300 rounded-md shadow-sm sm:text-sm text-stone-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isSaving || isDeleting}
-                >
-                  {STANDARD_UNITS.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {unit === "" ? "(none)" : unit}
-                    </option>
-                  ))}
-                </select>
+                <div className="select-wrapper w-24 min-w-0 relative">
+                  <select
+                    value={ingredient.unit || ""}
+                    onChange={(e) => {
+                      handleIngredientChange(index, "unit", e.target.value);
+                      (e.target as HTMLSelectElement).blur();
+                    }}
+                    className="select-with-arrow appearance-none w-full h-10 px-3 py-1 pr-8 border border-stone-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-stone-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed truncate"
+                    disabled={isSaving || isDeleting}
+                  >
+                    {STANDARD_UNITS.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit === "" ? "(none)" : unit}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <Input
                   type="text"
                   placeholder="Ingredient Name"
@@ -269,27 +278,29 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
         </Button>
       </div>
 
-      {/* Form Buttons */}
-      <div className="flex justify-start space-x-3 pt-4 border-t border-stone-200">
-        <Button
-          onClick={onCancel}
-          variant="secondary"
-          className="px-4 py-2"
-          disabled={isSaving || isDeleting}
-          type="button"
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="primary"
-          className="px-4 py-2"
-          disabled={isSaving || isDeleting}
-          isLoading={isSaving}
-        >
-          Save Recipe
-        </Button>
-      </div>
+      {/* Form Buttons - hidden when parent renders them (e.g. edit mode) */}
+      {!hideFormButtons && (
+        <div className="flex justify-start space-x-3 pt-4 border-t border-stone-200">
+          <Button
+            onClick={onCancel}
+            variant="secondary"
+            className="px-4 py-2"
+            disabled={isSaving || isDeleting}
+            type="button"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            className="px-4 py-2"
+            disabled={isSaving || isDeleting}
+            isLoading={isSaving}
+          >
+            Save Recipe
+          </Button>
+        </div>
+      )}
     </form>
   );
 };

@@ -4,7 +4,7 @@ interface ToggleGroupContextValue {
   value: string | null;
   onValueChange: (value: string) => void;
   type: 'single' | 'multiple';
-  variant: 'default' | 'outline';
+  variant: 'default' | 'outline' | 'ghost';
   size: 'sm' | 'default' | 'lg';
 }
 
@@ -14,7 +14,7 @@ interface ToggleGroupProps {
   type?: 'single' | 'multiple';
   value?: string | null;
   onValueChange?: (value: string | null) => void;
-  variant?: 'default' | 'outline';
+  variant?: 'default' | 'outline' | 'ghost';
   size?: 'sm' | 'default' | 'lg';
   className?: string;
   children: React.ReactNode;
@@ -66,7 +66,7 @@ const ToggleGroup: React.FC<ToggleGroupProps> = ({
 
 interface ToggleGroupItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   value: string;
-  variant?: 'default' | 'outline';
+  variant?: 'default' | 'outline' | 'ghost';
   size?: 'sm' | 'default' | 'lg';
 }
 
@@ -93,24 +93,24 @@ const ToggleGroupItem = React.forwardRef<HTMLButtonElement, ToggleGroupItemProps
     // Base styles - greyscale by default
     const baseStyles = 'inline-flex items-center justify-center font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50';
 
-    // Default (unselected) styles - greyscale
+    // Default (unselected) styles
     const defaultStyles = activeVariant === 'outline'
       ? 'border border-stone-300 text-stone-700 hover:bg-stone-100'
-      : 'text-stone-700 hover:bg-stone-300';
+      : activeVariant === 'ghost'
+        ? 'border-0 bg-white text-stone-700 hover:bg-stone-100'
+        : 'text-stone-700 hover:bg-stone-300';
 
-    // Selected styles - emerald (always include border for outline variant)
+    // Selected styles - solid emerald background
     const selectedStyles = isSelected
       ? activeVariant === 'outline'
-        ? 'border border-emerald-500 bg-emerald-50 text-emerald-700'
-        : 'bg-emerald-50 text-emerald-700'
+        ? 'border border-emerald-500 bg-stone-800 text-white'
+        : activeVariant === 'ghost'
+          ? 'border-0 bg-stone-800 text-white'
+          : 'bg-emerald-500 text-white'
       : defaultStyles;
 
-    // When any item is selected, color the shared borders with emerald
-    // This handles the case where cook is selected (bake's left border) 
-    // and bake is selected (cook's right border, even though it has border-r-0)
-    const sharedBorderStyles = hasSelection && activeVariant === 'outline' && !isSelected
-      ? 'border-emerald-500'
-      : '';
+    // No shared border styling when using solid active state
+    const sharedBorderStyles = '';
 
     // Focus styles - no ring when selected
     const focusStyles = isSelected

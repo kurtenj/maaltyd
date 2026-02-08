@@ -13,7 +13,7 @@ export function useRecipes() {
   const [selectedMainIngredient, setSelectedMainIngredient] = useState<
     string | null
   >(null);
-  const [quickActionFilter, setQuickActionFilter] = useState<'cook' | 'bake' | null>(null);
+  const [bakeFilter, setBakeFilter] = useState<boolean>(false);
 
   // Function to fetch recipes from the backend
   const fetchRecipes = useCallback(async () => {
@@ -63,14 +63,8 @@ export function useRecipes() {
 
     let recipesToFilter = allRecipes;
 
-    // 1. Filter by quick action (Cook or Bake)
-    if (quickActionFilter === 'cook') {
-      // Cook: all recipes except those with flour as main ingredient
-      recipesToFilter = recipesToFilter.filter(
-        (recipe) => recipe.main.toLowerCase() !== 'flour'
-      );
-    } else if (quickActionFilter === 'bake') {
-      // Bake: recipes with flour as main ingredient
+    // 1. Filter by bake (flour as main ingredient)
+    if (bakeFilter) {
       recipesToFilter = recipesToFilter.filter(
         (recipe) => recipe.main.toLowerCase() === 'flour'
       );
@@ -98,15 +92,11 @@ export function useRecipes() {
     fetchAttempted,
     searchTerm,
     selectedMainIngredient,
-    quickActionFilter,
+    bakeFilter,
   ]);
 
   const handleMainIngredientChange = (mainIngredient: string | null) => {
     setSelectedMainIngredient(mainIngredient);
-  };
-
-  const handleQuickActionToggle = (action: 'cook' | 'bake' | null) => {
-    setQuickActionFilter(action);
   };
 
   return {
@@ -119,8 +109,8 @@ export function useRecipes() {
     selectedMainIngredient,
     availableMainIngredients,
     handleMainIngredientChange,
-    quickActionFilter,
-    handleQuickActionToggle,
+    bakeFilter,
+    setBakeFilter,
     fetchRecipes, // Expose fetchRecipes for manual refresh
   };
 }

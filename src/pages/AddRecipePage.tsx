@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { ChevronLeft } from 'lucide-react';
 import { recipeApi } from '../services/api';
 import { logger } from '../utils/logger';
 import { ROUTES } from '../utils/navigation';
@@ -10,14 +11,15 @@ import { useAuth } from '@clerk/clerk-react';
 /**
  * Add Recipe Page - manual recipe entry
  */
-const AddRecipePage: React.FC = () => {
-  const defaultRecipe: Omit<Recipe, 'id'> = {
-    title: '',
-    main: '',
-    other: [{ name: '', quantity: 1, unit: '' }],
-    instructions: ['']
-  };
+const defaultRecipe: Recipe = {
+  id: 'temp-id',
+  title: '',
+  main: '',
+  other: [{ name: '', quantity: 1, unit: '' }],
+  instructions: ['']
+};
 
+const AddRecipePage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'error' | 'success'>('success');
@@ -136,10 +138,11 @@ const AddRecipePage: React.FC = () => {
   };
 
   /**
-   * Handle canceling the form
+   * Handle canceling the form - navigate back to home
    */
   const handleCancelForm = () => {
     setStatusMessage(null);
+    navigate(ROUTES.HOME);
   };
 
   // Show loading state while Clerk is initializing
@@ -168,17 +171,18 @@ const AddRecipePage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Add New Recipe</h1>
-        <Link 
-          to={ROUTES.HOME} 
-          className="text-emerald-600 hover:text-emerald-700 font-medium"
-        >
-          ← Back to Recipes
-        </Link>
-      </div>
+    <div className="max-w-2xl mx-auto p-1">
+      {/* Back Link */}
+      <Link
+        to={ROUTES.HOME}
+        className="inline-flex items-center text-stone-500 hover:text-stone-800 mb-4 group text-sm"
+      >
+        <ChevronLeft
+          size={16}
+          className="mr-1 group-hover:-translate-x-1 transition-transform"
+        />
+        Back to Recipes
+      </Link>
 
       {/* Status Message */}
       {statusMessage && (
@@ -191,14 +195,13 @@ const AddRecipePage: React.FC = () => {
         </div>
       )}
 
-      {/* Recipe Form */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold mb-4">Add Recipe</h2>
+      {/* Recipe Form Card */}
+      <div className="bg-white p-5 rounded-xl">
+        <h1 className="text-3xl font-bold mb-4 pb-2 text-stone-900">
+          Add New Recipe
+        </h1>
         <RecipeForm
-          initialRecipe={{
-            id: 'temp-id', // Temporary ID since RecipeForm expects it
-            ...defaultRecipe
-          }}
+          initialRecipe={defaultRecipe}
           onSave={handleSaveRecipe}
           onCancel={handleCancelForm}
           isSaving={isCreating}
