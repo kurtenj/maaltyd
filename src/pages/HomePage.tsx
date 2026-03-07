@@ -1,16 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useRecipes } from '../hooks/useRecipes';
 import RecipeCard from '../components/RecipeCard';
 import { ROUTES } from '../utils/navigation';
-import { ChefHat } from 'lucide-react';
+import { getRecentRecipeIds } from '../utils/recentRecipes';
 
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { Toggle } from '../components/Toggle';
 
 const HomePage: React.FC = () => {
   const {
+    allRecipes,
     isLoading,
     error,
     filteredRecipes,
@@ -19,32 +19,42 @@ const HomePage: React.FC = () => {
     selectedMainIngredient,
     availableMainIngredients,
     handleMainIngredientChange,
-    bakeFilter,
-    setBakeFilter,
   } = useRecipes();
+
+  const recentRecipes = useMemo(() => {
+    if (!allRecipes.length) return [];
+    const ids = getRecentRecipeIds();
+    return ids
+      .map((id) => allRecipes.find((r) => r.id === id))
+      .filter((r): r is NonNullable<typeof r> => r !== undefined);
+  }, [allRecipes]);
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
+      {/* Last Viewed */}
+      {!isLoading && recentRecipes.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-2xl font-semibold text-stone-900 mb-4">Last Viewed</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {recentRecipes.slice(0, 3).map((recipe, index) => (
+              <div key={recipe.id} className={index > 0 ? 'hidden lg:block' : undefined}>
+                <RecipeCard recipe={recipe} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All Recipes Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold text-stone-900">All Recipes</h2>
       </div>
 
       {/* Search Input and Recipe List Area */}
       <div className="mt-8">
-        {/* Filter Controls: Quick Action, Search, and Main Ingredient Select */}
+        {/* Filter Controls: Search and Main Ingredient Select */}
         <div className="flex flex-col gap-3 mb-6">
           <div className="flex gap-2 items-center">
-            <Toggle
-              pressed={bakeFilter}
-              onPressedChange={setBakeFilter}
-              variant="ghost"
-              size="sm"
-              title="Bake"
-              className="h-10 w-10 min-w-10 p-0 flex-shrink-0"
-            >
-              <ChefHat className="h-4 w-4" />
-            </Toggle>
             <Input
               type="text"
               placeholder="Search recipes..."
@@ -87,12 +97,12 @@ const HomePage: React.FC = () => {
         ) : filteredRecipes.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-stone-500 mb-4">
-              {searchTerm || selectedMainIngredient || bakeFilter
-                ? 'No recipes match your search criteria.' 
+              {searchTerm || selectedMainIngredient
+                ? 'No recipes match your search criteria.'
                 : 'No recipes found. Add your first recipe to get started!'
               }
             </p>
-            {!searchTerm && !selectedMainIngredient && !bakeFilter && (
+            {!searchTerm && !selectedMainIngredient && (
               <Link to={ROUTES.ADD_RECIPE}>
                 <Button variant="primary">Add Your First Recipe</Button>
               </Link>

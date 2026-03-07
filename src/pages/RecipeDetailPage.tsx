@@ -7,6 +7,7 @@ import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
+import { recordRecentRecipe } from "../utils/recentRecipes";
 import { ChevronLeft, Link } from "lucide-react";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
 import { SignedIn, useAuth } from '@clerk/clerk-react';
@@ -192,6 +193,7 @@ const RecipeDetailPage: React.FC = () => {
           setEditableRecipe(JSON.parse(JSON.stringify(data)));
           setDetailError(null);
           setImageLoadError(false);
+          recordRecentRecipe(data.id);
         }
 
         setIsFetchingDetails(false);

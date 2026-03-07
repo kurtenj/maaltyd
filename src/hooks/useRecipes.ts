@@ -13,7 +13,6 @@ export function useRecipes() {
   const [selectedMainIngredient, setSelectedMainIngredient] = useState<
     string | null
   >(null);
-  const [bakeFilter, setBakeFilter] = useState<boolean>(false);
 
   // Function to fetch recipes from the backend
   const fetchRecipes = useCallback(async () => {
@@ -63,21 +62,14 @@ export function useRecipes() {
 
     let recipesToFilter = allRecipes;
 
-    // 1. Filter by bake (flour as main ingredient)
-    if (bakeFilter) {
-      recipesToFilter = recipesToFilter.filter(
-        (recipe) => recipe.main.toLowerCase() === 'flour'
-      );
-    }
-
-    // 2. Filter by selectedMainIngredient
+    // 1. Filter by selectedMainIngredient
     if (selectedMainIngredient) {
       recipesToFilter = recipesToFilter.filter(
         (recipe) => recipe.main === selectedMainIngredient
       );
     }
 
-    // 3. Filter by searchTerm (title)
+    // 2. Filter by searchTerm (title)
     if (searchTerm) {
       recipesToFilter = recipesToFilter.filter((recipe) =>
         recipe.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -92,7 +84,6 @@ export function useRecipes() {
     fetchAttempted,
     searchTerm,
     selectedMainIngredient,
-    bakeFilter,
   ]);
 
   const handleMainIngredientChange = (mainIngredient: string | null) => {
@@ -109,8 +100,6 @@ export function useRecipes() {
     selectedMainIngredient,
     availableMainIngredients,
     handleMainIngredientChange,
-    bakeFilter,
-    setBakeFilter,
     fetchRecipes, // Expose fetchRecipes for manual refresh
   };
 }
