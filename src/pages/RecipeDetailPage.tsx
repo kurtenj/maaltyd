@@ -17,7 +17,7 @@ const RecipeDetailPage: React.FC = () => {
   const recipeId = params.recipeId;
 
   const navigate = useNavigate();
-  const { userId, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded, getToken } = useAuth();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isFetchingDetails, setIsFetchingDetails] = useState<boolean>(true);
@@ -53,7 +53,7 @@ const RecipeDetailPage: React.FC = () => {
       return;
     }
     
-    if (!userId) {
+    if (!isSignedIn) {
       setEditError('You must be signed in to update recipes.');
       return;
     }
@@ -62,7 +62,7 @@ const RecipeDetailPage: React.FC = () => {
     setEditError(null);
 
     const [result, error] = await tryCatchAsync(
-      () => recipeApi.update(recipeId, updatedRecipe, userId),
+      () => recipeApi.update(recipeId, updatedRecipe, getToken),
       "RecipeDetailPage",
       "Failed to update recipe"
     );
@@ -94,7 +94,7 @@ const RecipeDetailPage: React.FC = () => {
       return;
     }
     
-    if (!userId) {
+    if (!isSignedIn) {
       setEditError('You must be signed in to delete recipes.');
       return;
     }
@@ -109,7 +109,7 @@ const RecipeDetailPage: React.FC = () => {
 
       const [, error] = await tryCatchAsync(
         () => {
-          return recipeApi.delete(recipe.id, userId);
+          return recipeApi.delete(recipe.id, getToken);
         },
         "RecipeDetailPage",
         "Failed to delete recipe"

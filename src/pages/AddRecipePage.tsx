@@ -25,7 +25,7 @@ const AddRecipePage: React.FC = () => {
   const [statusType, setStatusType] = useState<'error' | 'success'>('success');
 
   const navigate = useNavigate();
-  const { isSignedIn, isLoaded, userId } = useAuth();
+  const { isSignedIn, isLoaded, getToken } = useAuth();
 
   /**
    * Handle creating a new recipe
@@ -81,7 +81,7 @@ const AddRecipePage: React.FC = () => {
     let createError: Error | null = null;
     
     try {
-      newRecipe = await recipeApi.create(recipe, userId);
+      newRecipe = await recipeApi.create(recipe, getToken);
     } catch (error) {
       logger.error('AddRecipePage', 'Error creating recipe:', error);
       createError = error instanceof Error ? error : new Error(String(error));

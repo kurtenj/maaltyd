@@ -14,12 +14,12 @@ const NO_CACHE_OPTIONS = {
 };
 
 /**
- * Get authenticated headers with user ID
+ * Get authenticated headers with Bearer token
  */
-function getAuthHeaders(userId?: string | null): Record<string, string> {
+function getAuthHeaders(token?: string | null): Record<string, string> {
   const headers: Record<string, string> = { ...NO_CACHE_OPTIONS.headers };
-  if (userId) {
-    headers['x-clerk-user-id'] = userId;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
   return headers;
 }
@@ -85,46 +85,49 @@ export const recipeApi = {
   /**
    * Create new recipe
    */
-  async create(recipe: Omit<Recipe, 'id'>, userId?: string | null): Promise<Recipe> {
+  async create(recipe: Omit<Recipe, 'id'>, getToken: (() => Promise<string | null>) | null): Promise<Recipe> {
+    const token = getToken ? await getToken() : null;
     const response = await fetch('/api/recipes', {
       ...NO_CACHE_OPTIONS,
       method: 'POST',
       headers: {
-        ...getAuthHeaders(userId),
+        ...getAuthHeaders(token),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(recipe),
     });
-    
+
     return handleApiResponse<Recipe>(response);
   },
-  
-    /**
+
+  /**
    * Update existing recipe
    */
-  async update(id: string, recipe: Recipe, userId?: string | null): Promise<Recipe> {
+  async update(id: string, recipe: Recipe, getToken: (() => Promise<string | null>) | null): Promise<Recipe> {
+    const token = getToken ? await getToken() : null;
     const response = await fetch(`/api/recipe/${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'PUT',
       headers: {
-        ...getAuthHeaders(userId),
+        ...getAuthHeaders(token),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(recipe),
     });
-    
+
     return handleApiResponse<Recipe>(response);
   },
 
   /**
    * Delete recipe
    */
-  async delete(id: string, userId?: string | null): Promise<void> {
+  async delete(id: string, getToken: (() => Promise<string | null>) | null): Promise<void> {
+    const token = getToken ? await getToken() : null;
     const response = await fetch(`/api/recipe/${encodeURIComponent(id)}`, {
       ...NO_CACHE_OPTIONS,
       method: 'DELETE',
       headers: {
-        ...getAuthHeaders(userId),
+        ...getAuthHeaders(token),
       },
     });
     

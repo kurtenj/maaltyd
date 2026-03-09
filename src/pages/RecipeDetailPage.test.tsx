@@ -41,7 +41,7 @@ vi.mock("../utils/logger", () => ({
 }));
 
 vi.mock("@clerk/clerk-react", () => ({
-  useAuth: () => ({ userId: "test-user", isLoaded: true }),
+  useAuth: () => ({ isSignedIn: true, isLoaded: true, getToken: vi.fn().mockResolvedValue("test-token") }),
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
