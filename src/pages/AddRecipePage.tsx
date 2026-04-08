@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { ROUTES } from '../utils/navigation';
 import type { Recipe } from '../types/recipe';
 import RecipeForm from '../components/RecipeForm';
+import { NO_UNIT } from '../utils/constants';
 import { useAuth } from '@clerk/clerk-react';
 
 /**
@@ -15,7 +16,7 @@ const defaultRecipe: Recipe = {
   id: 'temp-id',
   title: '',
   main: '',
-  other: [{ name: '', quantity: 1, unit: '' }],
+  other: [{ name: '', quantity: 1, unit: NO_UNIT }],
   instructions: ['']
 };
 
@@ -120,9 +121,7 @@ const AddRecipePage: React.FC = () => {
 
     if (newRecipe) {
       logger.log('AddRecipePage', 'Recipe created successfully:', newRecipe);
-      // The original code had refetchRecipes here, but it's not available in useRecipes hook
-      // For now, we'll just navigate to home or recipe detail page
-      navigate(ROUTES.HOME); 
+      navigate(ROUTES.RECIPE_DETAIL(newRecipe.id));
     }
 
     setIsCreating(false);

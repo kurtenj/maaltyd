@@ -82,7 +82,7 @@ const ToggleGroupItem = React.forwardRef<HTMLButtonElement, ToggleGroupItemProps
     const activeVariant = variant ?? groupVariant;
     const activeSize = size ?? groupSize;
     const isSelected = groupValue === value;
-    const hasSelection = groupValue !== null;
+    const _hasSelection = groupValue !== null;
 
     const sizeStyles = {
       sm: 'h-10 px-3 text-sm',

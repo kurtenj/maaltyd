@@ -3,7 +3,7 @@ import { Recipe, Ingredient } from "../types/recipe";
 import Button from "./Button";
 import Input from "./Input";
 import { Trash2 } from "lucide-react";
-import { STANDARD_UNITS } from "../utils/constants";
+import { STANDARD_UNITS, NO_UNIT } from "../utils/constants";
 
 interface RecipeFormProps {
   initialRecipe: Recipe;
@@ -60,7 +60,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   const addIngredient = () => {
     setRecipe({
       ...recipe,
-      other: [...recipe.other, { name: "", quantity: 1, unit: "" }], // Default new quantity to 1 (must be positive)
+      other: [...recipe.other, { name: "", quantity: 1, unit: NO_UNIT }],
     });
   };
 
@@ -181,7 +181,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
                 />
                 <div className="select-wrapper w-24 min-w-0 relative">
                   <select
-                    value={ingredient.unit || ""}
+                    value={ingredient.unit ?? NO_UNIT}
                     onChange={(e) => {
                       handleIngredientChange(index, "unit", e.target.value);
                       (e.target as HTMLSelectElement).blur();
@@ -191,7 +191,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
                   >
                     {STANDARD_UNITS.map((unit) => (
                       <option key={unit} value={unit}>
-                        {unit === "" ? "(none)" : unit}
+                        {unit === NO_UNIT ? "(none)" : unit}
                       </option>
                     ))}
                   </select>

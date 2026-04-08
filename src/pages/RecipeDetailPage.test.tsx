@@ -67,29 +67,24 @@ beforeEach(() => {
 const sampleRecipe: Recipe = {
   id: "1",
   title: "Test Recipe",
+  main: "chicken",
   instructions: ["Step 1", "Step 2"],
   other: [
-    { name: "Ingredient 1", quantity: "1", unit: "cup" },
-    { name: "Ingredient 2", quantity: "200", unit: "grams" },
-    { name: "Ingredient 3", quantity: "A pinch" }, // No unit
-    { name: "Ingredient 4", unit: "ml" }, // No quantity
-    { name: "Ingredient 5" }, // No quantity or unit
+    { name: "Ingredient 1", quantity: 1, unit: "cup" },
+    { name: "Ingredient 2", quantity: 200, unit: "g" },
+    { name: "Ingredient 3", quantity: 1, unit: "pinch" }, // quantity + unit
+    { name: "Ingredient 4", quantity: 0, unit: "ml" }, // zero quantity (renders as "")
+    { name: "Ingredient 5", quantity: 0 }, // no unit
   ],
   imageUrl: "test.jpg",
-  sourceUrl: "test.com",
-  notes: "Test notes",
-  tags: ["test", "recipe"],
-  isFavorite: false,
-  createdAt: "2024-01-01T00:00:00.000Z",
-  updatedAt: "2024-01-01T00:00:00.000Z",
 };
 
 const expectedFormattedText = `Recipe: Test Recipe
 
 Ingredients:
 - 1 cup Ingredient 1
-- 200 grams Ingredient 2
-- A pinch  Ingredient 3
+- 200 g Ingredient 2
+- 1 pinch Ingredient 3
 -  ml Ingredient 4
 -   Ingredient 5
 

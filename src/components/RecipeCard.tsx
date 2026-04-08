@@ -8,7 +8,7 @@ interface RecipeCardProps {
   recipe: Recipe;
 }
 
-const RecipeCard: React.FC<RecipeCardProps> = ({ recipe }) => {
+const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ recipe }) => {
   const [imageLoadError, setImageLoadError] = useState(false);
 
   return (
@@ -58,6 +58,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe }) => {
       </div>
     </Link>
   );
-};
+});
 
 export default RecipeCard;

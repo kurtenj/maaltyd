@@ -4,12 +4,26 @@ import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 
-export function useRecipes() {
+interface UseRecipesReturn {
+  allRecipes: Recipe[];
+  isLoading: boolean;
+  error: string | null;
+  filteredRecipes: Recipe[];
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  selectedMainIngredient: string | null;
+  availableMainIngredients: string[];
+  handleMainIngredientChange: (main: string | null) => void;
+  fetchRecipes: () => Promise<void>;
+}
+
+export function useRecipes(): UseRecipesReturn {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchAttempted, setFetchAttempted] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
   const [selectedMainIngredient, setSelectedMainIngredient] = useState<
     string | null
   >(null);
@@ -50,6 +64,12 @@ export function useRecipes() {
     fetchRecipes();
   }, [fetchRecipes]);
 
+  // Debounce search term by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const availableMainIngredients = useMemo(() => {
     const mains = new Set(allRecipes.map((r) => r.main).filter((m) => m)); // Filter out empty/null mains
     return Array.from(mains).sort();
@@ -70,9 +90,9 @@ export function useRecipes() {
     }
 
     // 2. Filter by searchTerm (title)
-    if (searchTerm) {
+    if (debouncedSearchTerm) {
       recipesToFilter = recipesToFilter.filter((recipe) =>
-        recipe.title.toLowerCase().includes(searchTerm.toLowerCase())
+        recipe.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
       );
     }
 
@@ -82,7 +102,7 @@ export function useRecipes() {
     isLoading,
     error,
     fetchAttempted,
-    searchTerm,
+    debouncedSearchTerm,
     selectedMainIngredient,
   ]);
 

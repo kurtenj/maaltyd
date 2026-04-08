@@ -79,13 +79,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     console.log(`[api/recipes POST]: Saving new recipe to Redis key: ${key} (if not exists)`);
     const setResult = await redis.set(key, newRecipe, { nx: true });
 
-    // If setResult is NOT null, it means the key already existed (NX failed)
-    if (setResult !== 'OK') { 
+    // setResult is 'OK' on success, null if the key already existed (NX failed)
+    if (setResult === null) {
       console.warn(`[POST /api/recipes] Key ${key} already exists (NX failed).`);
       return NextResponse.json({ message: `Recipe with generated ID '${newId}' already exists.` }, { status: 409 });
     }
 
-    // If setResult is 'OK', the key was set successfully
+    // setResult is 'OK' — key was set successfully
     return NextResponse.json(newRecipe, { status: 201 });
 
   } catch (error: unknown) {

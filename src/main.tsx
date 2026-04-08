@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
@@ -6,15 +6,15 @@ import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css'
 import HomePage from './pages/HomePage.tsx';
-import RecipeDetailPage from './pages/RecipeDetailPage.tsx';
-import AddRecipePage from './pages/AddRecipePage.tsx';
+
+const RecipeDetailPage = lazy(() => import('./pages/RecipeDetailPage.tsx'));
+const AddRecipePage = lazy(() => import('./pages/AddRecipePage.tsx'));
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 if (!PUBLISHABLE_KEY) {
   throw new Error("Missing Clerk Publishable Key");
 }
 
-// Restore original router
 const router = createBrowserRouter([
   {
     path: '/',
@@ -26,11 +26,19 @@ const router = createBrowserRouter([
       },
       {
         path: '/recipe/:recipeId',
-        element: <RecipeDetailPage />,
+        element: (
+          <Suspense fallback={<p className="text-center text-stone-500 italic py-10">Loading...</p>}>
+            <RecipeDetailPage />
+          </Suspense>
+        ),
       },
       {
         path: '/add-recipe',
-        element: <AddRecipePage />,
+        element: (
+          <Suspense fallback={<p className="text-center text-stone-500 italic py-10">Loading...</p>}>
+            <AddRecipePage />
+          </Suspense>
+        ),
       },
     ],
   },

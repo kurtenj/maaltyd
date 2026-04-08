@@ -12,5 +12,9 @@ export function getRecentRecipeIds(): string[] {
 export function recordRecentRecipe(id: string): void {
   const ids = getRecentRecipeIds().filter((rid) => rid !== id);
   ids.unshift(id);
-  localStorage.setItem(KEY, JSON.stringify(ids.slice(0, MAX)));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(ids.slice(0, MAX)));
+  } catch {
+    // localStorage unavailable
+  }
 }

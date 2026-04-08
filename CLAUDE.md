@@ -29,8 +29,11 @@ npx vitest run src/components/Header.test.tsx
 - **Entry:** `main.tsx` — sets up `ClerkProvider`, `RouterProvider` with three routes: `/`, `/recipe/:recipeId`, `/add-recipe`
 - **Layout:** `App.tsx` — `Header` + `<Outlet />` + `Footer` shell
 - **Pages:** `HomePage`, `RecipeDetailPage`, `AddRecipePage`
+  - `RecipeDetailPage` handles both read and edit mode inline (toggled via state) — there is no separate edit route
+  - `RecipeForm` component is shared between `AddRecipePage` (create) and `RecipeDetailPage` (edit)
 - **State:** `src/hooks/useRecipes.ts` — single hook managing all recipe list state (fetch, filter by `main` ingredient, search by title). Exposes `fetchRecipes` for manual refresh.
 - **API client:** `src/services/api.ts` — `recipeApi` object wrapping all fetch calls to `/api/*`. Mutation methods (`create`, `update`, `delete`) accept a `getToken` function from Clerk's `useAuth()` and send `Authorization: Bearer <token>`.
+- **Navigation:** Use `ROUTES` from `src/utils/navigation.ts` for all route paths in code (e.g., `ROUTES.HOME`, `ROUTES.RECIPE_DETAIL(id)`).
 
 ### Backend (`api/`)
 

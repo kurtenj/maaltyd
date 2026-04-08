@@ -19,4 +19,7 @@ export const STANDARD_UNITS = [
   'slice',      // Common non-standard
   'servings',   // Add 'servings' as the new standard/fallback
   ''            // Explicitly allow empty string for truly unitless items
-].sort(); // Keep sorted for display 
+].sort(); // Keep sorted for display
+
+/** Sentinel value for "no unit" — corresponds to the empty-string entry in STANDARD_UNITS */
+export const NO_UNIT = '' as const;

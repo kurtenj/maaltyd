@@ -9,11 +9,15 @@ const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
 // Enable logging based on environment or localStorage setting
 const isLoggingEnabled = () => {
   // Always check localStorage first to allow override
-  const localStorageSetting = localStorage.getItem('debug');
-  if (localStorageSetting !== null) {
-    return localStorageSetting === 'true';
+  try {
+    const localStorageSetting = localStorage.getItem('debug');
+    if (localStorageSetting !== null) {
+      return localStorageSetting === 'true';
+    }
+  } catch {
+    // localStorage unavailable (e.g. cross-origin iframe, storage quota exceeded)
   }
-  
+
   // Default based on environment
   return isDev;
 };
@@ -36,7 +40,11 @@ export const logger = {
    * Enable or disable logging globally
    */
   setEnabled: (enabled: boolean) => {
-    localStorage.setItem('debug', String(enabled));
+    try {
+      localStorage.setItem('debug', String(enabled));
+    } catch {
+      // localStorage unavailable
+    }
   },
   
   /**
