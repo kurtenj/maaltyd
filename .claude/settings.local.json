@@ -6,7 +6,8 @@
       "Bash(node -e \"const { createClerkClient } = require\\(''@clerk/backend''\\); const c = createClerkClient\\({ secretKey: ''sk_test_fake'' }\\); console.log\\(Object.keys\\(c\\)\\)\")",
       "Bash(node -e \"const c = require\\(''@clerk/backend''\\); const fns = Object.keys\\(c\\).filter\\(k => typeof c[k] === ''function''\\); console.log\\(fns\\)\")",
       "Bash(npx vitest run)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

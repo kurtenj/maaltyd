@@ -9,7 +9,7 @@ import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
 import { recordRecentRecipe } from "../utils/recentRecipes";
-import { ChevronLeft, Link } from "lucide-react";
+import { Check, ChevronLeft, Link } from "lucide-react";
 import { SignedIn, useAuth } from '@clerk/clerk-react';
 
 function deepCopy<T>(value: T): T {
@@ -20,11 +20,36 @@ function deepCopy<T>(value: T): T {
 
 interface RecipeReadViewProps {
   recipe: Recipe;
-  onShare: () => void;
 }
 
-const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe, onShare }) => {
+const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe }) => {
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [shareState, setShareState] = useState<"idle" | "shared" | "copied" | "error">("idle");
+
+  const handleShare = async () => {
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: recipe.title, url });
+        setShareState("shared");
+        setTimeout(() => setShareState("idle"), 2000);
+      } catch (_error) {
+        // User likely cancelled, no action needed
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareState("copied");
+        setTimeout(() => setShareState("idle"), 2000);
+      } catch (_error) {
+        setShareState("error");
+        setTimeout(() => setShareState("idle"), 2000);
+      }
+    }
+  };
+
+  const isSuccess = shareState === "shared" || shareState === "copied";
 
   return (
     <>
@@ -46,14 +71,22 @@ const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe, onShare }) => {
 
       <h1 className="text-3xl font-bold mb-4 capitalize pb-2 text-stone-900 flex items-center gap-3">
         <span>{recipe.title}</span>
-        <button
-          onClick={onShare}
-          className="text-stone-400 hover:text-stone-600 transition-colors p-0.5"
-          aria-label="Share recipe"
-          title="Share recipe"
-        >
-          <Link size={20} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleShare}
+            className={`transition-colors p-0.5 ${isSuccess ? "text-green-500" : "text-stone-400 hover:text-stone-600"}`}
+            aria-label="Share recipe"
+            title="Share recipe"
+          >
+            {isSuccess ? <Check size={20} /> : <Link size={20} />}
+          </button>
+          {shareState === "copied" && (
+            <span className="text-xs font-normal text-green-600">Copied!</span>
+          )}
+          {shareState === "error" && (
+            <span className="text-xs font-normal text-red-500">Failed to copy</span>
+          )}
+        </div>
       </h1>
 
       <h2 className="uppercase text-xs font-bold mb-2 mt-6 text-stone-400">
@@ -196,37 +229,6 @@ const RecipeDetailPage: React.FC = () => {
     }
   };
 
-  const handleShare = async () => {
-    if (!recipe) return;
-
-    const ingredientsText = recipe.other
-      .map((ingredient) =>
-        `- ${ingredient.quantity || ""} ${ingredient.unit || ""} ${ingredient.name}`
-      )
-      .join("\n");
-
-    const instructionsText = recipe.instructions
-      .map((instruction, index) => `${index + 1}. ${instruction}`)
-      .join("\n");
-
-    const shareText = `Recipe: ${recipe.title}\n\nIngredients:\n${ingredientsText}\n\nInstructions:\n${instructionsText}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: recipe.title, text: shareText });
-      } catch (_error) {
-        // User likely cancelled, no action needed
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareText);
-        window.alert("Recipe copied to clipboard!");
-      } catch (_error) {
-        window.alert("Could not copy recipe to clipboard.");
-      }
-    }
-  };
-
   useEffect(() => {
     setRecipe(null);
     setEditableRecipe(null);
@@ -309,7 +311,7 @@ const RecipeDetailPage: React.FC = () => {
                 formId="recipe-edit-form"
               />
             ) : (
-              <RecipeReadView recipe={recipe} onShare={handleShare} />
+              <RecipeReadView recipe={recipe} />
             )
           )}
         </div>

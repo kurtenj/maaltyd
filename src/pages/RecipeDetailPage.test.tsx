@@ -45,17 +45,15 @@ vi.mock("@clerk/clerk-react", () => ({
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// Global Mocks for navigator and window.alert
+// Global Mocks for navigator
 const mockNavigatorShare = vi.fn();
 const mockNavigatorClipboardWriteText = vi.fn();
-const mockWindowAlert = vi.fn();
 
 beforeAll(() => {
   // @ts-expect-error - Mocking global navigator.share for testing
   global.navigator.share = mockNavigatorShare;
   // @ts-expect-error - Mocking global navigator.clipboard for testing
   global.navigator.clipboard = { writeText: mockNavigatorClipboardWriteText };
-  global.window.alert = mockWindowAlert;
 });
 
 beforeEach(() => {
@@ -79,22 +77,9 @@ const sampleRecipe: Recipe = {
   imageUrl: "test.jpg",
 };
 
-const expectedFormattedText = `Recipe: Test Recipe
-
-Ingredients:
-- 1 cup Ingredient 1
-- 200 g Ingredient 2
-- 1 pinch Ingredient 3
--  ml Ingredient 4
--   Ingredient 5
-
-Instructions:
-1. Step 1
-2. Step 2`;
-
 describe("RecipeDetailPage - Sharing Functionality", () => {
-  test("should call navigator.share with correct data when available", async () => {
-    mockNavigatorShare.mockResolvedValueOnce(undefined); // Simulate successful share
+  test("should call navigator.share with title and url when available", async () => {
+    mockNavigatorShare.mockResolvedValueOnce(undefined);
     const shareButton = await renderComponentAndWaitForRecipe();
 
     fireEvent.click(shareButton);
@@ -103,15 +88,24 @@ describe("RecipeDetailPage - Sharing Functionality", () => {
       expect(mockNavigatorShare).toHaveBeenCalledTimes(1);
       expect(mockNavigatorShare).toHaveBeenCalledWith({
         title: sampleRecipe.title,
-        text: expectedFormattedText,
+        url: window.location.href,
       });
     });
-    expect(mockWindowAlert).not.toHaveBeenCalled();
   });
 
-  test("should handle navigator.share rejection (e.g., user cancellation)", async () => {
-    const shareError = new Error("Share cancelled");
-    mockNavigatorShare.mockRejectedValueOnce(shareError);
+  test("should show check icon after successful native share", async () => {
+    mockNavigatorShare.mockResolvedValueOnce(undefined);
+    await renderComponentAndWaitForRecipe();
+
+    fireEvent.click(screen.getByTitle(/Share recipe/i));
+
+    await waitFor(() => {
+      expect(screen.getByTitle(/Share recipe/i).querySelector("svg")).toBeTruthy();
+    });
+  });
+
+  test("should handle navigator.share rejection (e.g., user cancellation) silently", async () => {
+    mockNavigatorShare.mockRejectedValueOnce(new Error("Share cancelled"));
     const shareButton = await renderComponentAndWaitForRecipe();
 
     fireEvent.click(shareButton);
@@ -119,41 +113,39 @@ describe("RecipeDetailPage - Sharing Functionality", () => {
     await waitFor(() => {
       expect(mockNavigatorShare).toHaveBeenCalledTimes(1);
     });
-    expect(mockWindowAlert).not.toHaveBeenCalled(); // No alert on share cancellation
+    expect(screen.queryByText(/Copied!/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Failed/i)).not.toBeInTheDocument();
   });
 
-  test("should use clipboard.writeText and alert success if navigator.share is undefined", async () => {
+  test("should copy url to clipboard and show 'Copied!' when navigator.share is undefined", async () => {
     // @ts-expect-error - Temporarily disabling navigator.share for fallback testing
-    global.navigator.share = undefined; // Simulate navigator.share not being available
-    mockNavigatorClipboardWriteText.mockResolvedValueOnce(undefined); // Simulate successful copy
+    global.navigator.share = undefined;
+    mockNavigatorClipboardWriteText.mockResolvedValueOnce(undefined);
 
     const shareButton = await renderComponentAndWaitForRecipe();
     fireEvent.click(shareButton);
 
     await waitFor(() => {
       expect(mockNavigatorClipboardWriteText).toHaveBeenCalledTimes(1);
-      expect(mockNavigatorClipboardWriteText).toHaveBeenCalledWith(expectedFormattedText);
-      expect(mockWindowAlert).toHaveBeenCalledWith("Recipe copied to clipboard!");
+      expect(mockNavigatorClipboardWriteText).toHaveBeenCalledWith(window.location.href);
+      expect(screen.getByText("Copied!")).toBeInTheDocument();
     });
-    // Restore navigator.share for other tests
     // @ts-expect-error - Restoring mocked navigator.share after test
     global.navigator.share = mockNavigatorShare;
   });
 
-  test("should alert error if clipboard.writeText fails and navigator.share is undefined", async () => {
+  test("should show 'Failed to copy' if clipboard.writeText fails and navigator.share is undefined", async () => {
     // @ts-expect-error - Temporarily disabling navigator.share for fallback testing
-    global.navigator.share = undefined; // Simulate navigator.share not being available
-    mockNavigatorClipboardWriteText.mockRejectedValueOnce(new Error("Copy failed")); // Simulate failed copy
+    global.navigator.share = undefined;
+    mockNavigatorClipboardWriteText.mockRejectedValueOnce(new Error("Copy failed"));
 
     const shareButton = await renderComponentAndWaitForRecipe();
     fireEvent.click(shareButton);
 
     await waitFor(() => {
       expect(mockNavigatorClipboardWriteText).toHaveBeenCalledTimes(1);
-      expect(mockNavigatorClipboardWriteText).toHaveBeenCalledWith(expectedFormattedText);
-      expect(mockWindowAlert).toHaveBeenCalledWith("Could not copy recipe to clipboard.");
+      expect(screen.getByText("Failed to copy")).toBeInTheDocument();
     });
-    // Restore navigator.share for other tests
     // @ts-expect-error - Restoring mocked navigator.share after test
     global.navigator.share = mockNavigatorShare;
   });
