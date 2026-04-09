@@ -60,6 +60,10 @@ Both GET handlers use the shared `fetchAllRecipes()` utility in `src/utils/recip
 - **Logging:** `logger` from `src/utils/logger.ts` — logs are suppressed in production by default; can be re-enabled at runtime via `localStorage.setItem('debug', 'true')`.
 - **Recent recipes:** `src/utils/recentRecipes.ts` — tracks last 5 viewed recipe IDs in `localStorage`.
 
+### Deployment
+
+`vercel.json` configures SPA fallback rewrites so that deep links (e.g. `/recipe/:id`) are served by `index.html` and handled by React Router client-side. The `/api/*` prefix is reserved for serverless functions.
+
 ## Environment Variables
 
 Required in `.env.development.local` for local development:
