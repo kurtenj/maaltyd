@@ -71,19 +71,4 @@ export async function tryCatchAsync<T>(
     return [null, handleError(module, error, errorMessage)];
   }
 }
-
-/**
- * Try/catch wrapper for synchronous functions
- */
-export function tryCatch<T>(
-  fn: () => T,
-  module: string,
-  errorMessage?: string
-): [T | null, AppError | null] {
-  try {
-    const result = fn();
-    return [result, null];
-  } catch (error) {
-    return [null, handleError(module, error, errorMessage)];
-  }
-} 
+ 
