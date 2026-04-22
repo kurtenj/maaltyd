@@ -25,6 +25,7 @@ interface RecipeReadViewProps {
 const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe }) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [shareState, setShareState] = useState<"idle" | "shared" | "copied" | "error">("idle");
+  const [multiplier, setMultiplier] = useState<1 | 2 | 3>(1);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -89,26 +90,48 @@ const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe }) => {
         </div>
       </h1>
 
-      <h2 className="uppercase text-xs font-bold mb-2 mt-6 text-stone-400">
-        Ingredients
-      </h2>
+      <div className="flex items-center justify-between mt-6 mb-2">
+        <h2 className="uppercase text-xs font-bold text-stone-400">
+          Ingredients
+        </h2>
+        <div className="flex gap-1">
+          {([1, 2, 3] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMultiplier(m)}
+              className={`px-2.5 py-0.5 rounded text-sm font-medium transition-colors ${
+                multiplier === m
+                  ? "bg-stone-800 text-white"
+                  : "text-stone-400 hover:text-stone-600"
+              }`}
+            >
+              {m}x
+            </button>
+          ))}
+        </div>
+      </div>
       {recipe.other.length > 0 && (
         <div className="mb-3">
           <div className="text-stone-700">
-            {recipe.other.map((ingredient, index) => (
-              <div key={index} className="mb-1">
-                <span className="font-bold capitalize">{ingredient.name}</span>
-                {ingredient.quantity && ingredient.unit && (
-                  <span className="text-stone-400">{` ${ingredient.quantity} ${ingredient.unit}`}</span>
-                )}
-                {ingredient.quantity && !ingredient.unit && (
-                  <span className="text-stone-400">{` ${ingredient.quantity}`}</span>
-                )}
-                {!ingredient.quantity && ingredient.unit && (
-                  <span className="text-stone-400">{` ${ingredient.unit}`}</span>
-                )}
-              </div>
-            ))}
+            {recipe.other.map((ingredient, index) => {
+              const qty = ingredient.quantity
+                ? parseFloat((ingredient.quantity * multiplier).toFixed(2))
+                : null;
+              return (
+                <div key={index} className="mb-1">
+                  <span className="font-bold capitalize">{ingredient.name}</span>
+                  {qty && ingredient.unit && (
+                    <span className="text-stone-400">{` ${qty} ${ingredient.unit}`}</span>
+                  )}
+                  {qty && !ingredient.unit && (
+                    <span className="text-stone-400">{` ${qty}`}</span>
+                  )}
+                  {!qty && ingredient.unit && (
+                    <span className="text-stone-400">{` ${ingredient.unit}`}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
