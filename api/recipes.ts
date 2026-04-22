@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.development.local' }); // Load env vars for local dev
 
 import { NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { RecipeCreateSchema, RecipeSchema } from '../src/utils/apiSchemas';
 import { redis, RECIPE_PREFIX } from '../src/utils/redisClient';
 import { fetchAllRecipes } from '../src/utils/recipeFetcher';
@@ -64,7 +63,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const validatedData = validationResult.data;
-  const newId = uuidv4(); // Generate UUID for unique ID
+  const newId = crypto.randomUUID();
   const key = `${RECIPE_PREFIX}${newId}`;
 
   console.log(`[api/recipes POST]: Generated unique ID: ${newId} and key: ${key}`);

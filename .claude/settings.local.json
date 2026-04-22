@@ -22,7 +22,10 @@
       "Bash(node -e \"const d=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); console.log\\(d.slice\\(-5\\).join\\('\\\\n'\\)\\)\")",
       "Bash(npm uninstall *)",
       "PowerShell(Stop-Process -Id 27312 -Force)",
-      "Bash(npm version *)"
+      "Bash(npm version *)",
+      "Bash(node -e \"const z = require\\('./node_modules/zod'\\); console.log\\('preprocess:', typeof z.z?.preprocess ?? typeof z.preprocess\\); console.log\\('ZodSchema:', typeof z.ZodSchema\\); console.log\\('ZodType:', typeof z.ZodType\\);\")",
+      "Bash(node -e \"const n = require\\('./node_modules/next/server'\\); console.log\\('NextResponse:', typeof n.NextResponse\\);\")",
+      "Bash(node -e \"const pkg = require\\('./node_modules/uuid/package.json'\\); console.log\\('type:', pkg.type\\); console.log\\('main:', pkg.main\\); console.log\\('exports keys:', Object.keys\\(pkg.exports || {}\\)\\);\")"
     ]
   }
 }
