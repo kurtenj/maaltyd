@@ -57,8 +57,8 @@ async function handleApiResponse<T>(response: Response): Promise<T> {
   // If response was ok, now parse the text as JSON
   try {
     return JSON.parse(rawResponseText);
-  } catch (_parseError) {
-    throw new Error('Failed to parse API response');
+  } catch (parseError) {
+    throw new Error('Failed to parse API response', { cause: parseError });
   }
 }
 

@@ -8,7 +8,20 @@
       "Bash(npx vitest run)",
       "Bash(npm run:*)",
       "Bash(npx vitest:*)",
-      "Bash(npx knip:*)"
+      "Bash(npx knip:*)",
+      "Bash(kill %1)",
+      "Bash(wait)",
+      "Bash(npm outdated *)",
+      "Bash(npm i *)",
+      "Bash(vercel --version)",
+      "Bash(npm update *)",
+      "Bash(npm install *)",
+      "Bash(npm list *)",
+      "Bash(node -e \"const l = require\\('./node_modules/lucide-react'\\); console.log\\(['ChevronLeft','ImageIcon','Plus'].map\\(n => n + ': ' + \\(n in l ? 'OK' : 'MISSING'\\)\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(npm info *)",
+      "Bash(node -e \"const d=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); console.log\\(d.slice\\(-5\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(npm uninstall *)",
+      "PowerShell(Stop-Process -Id 27312 -Force)"
     ]
   }
 }

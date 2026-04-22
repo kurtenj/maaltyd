@@ -23,7 +23,7 @@ const Button: React.FC<ButtonProps> = ({
     'inline-flex items-center justify-center rounded-md border border-transparent text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition duration-150 ease-in-out';
 
   // Determine styles based on variant and disabled state
-  let variantStyles = '';
+  let variantStyles: string;
   switch (variant) {
     case 'icon': // Added icon variant - applies no padding
       variantStyles = `${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''}`;
