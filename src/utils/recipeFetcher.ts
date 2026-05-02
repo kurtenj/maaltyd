@@ -1,31 +1,14 @@
 import { z } from 'zod';
 import { redis, RECIPE_PREFIX } from './redisClient';
 import { RecipeSchema } from './apiSchemas';
+import { serverLogger } from './serverLogger';
 import type { Recipe } from '../types/recipe';
 
-/**
- * Options for fetching recipes
- */
 export interface FetchRecipesOptions {
-  /**
-   * Schema to use for validation. Defaults to RecipeSchema.
-   */
   schema?: z.ZodSchema<Recipe>;
-  /**
-   * Context for logging (e.g., 'api/recipes')
-   */
   logContext?: string;
 }
 
-/**
- * Fetches all recipes from Redis, validates them, and optionally filters them.
- * 
- * This is a shared utility to avoid code duplication across API routes.
- * 
- * @param options - Configuration options for fetching recipes
- * @returns Array of valid recipes
- * @throws Error if Redis operation fails
- */
 export async function fetchAllRecipes(
   options: FetchRecipesOptions = {}
 ): Promise<Recipe[]> {
@@ -34,46 +17,40 @@ export async function fetchAllRecipes(
     logContext = 'recipeFetcher',
   } = options;
 
-  console.log(`[${logContext}]: Fetching recipe keys from Redis using SCAN...`);
-  
-  // 1. Scan for all recipe keys
+  serverLogger.log(logContext, 'fetching recipe keys from Redis using SCAN...');
+
   const recipeKeys: string[] = [];
   let cursor: string | number = 0;
   do {
-    const [nextCursorStr, keys] = await redis.scan(cursor as number, { 
-      match: `${RECIPE_PREFIX}*` 
+    const [nextCursorStr, keys] = await redis.scan(cursor as number, {
+      match: `${RECIPE_PREFIX}*`
     });
     recipeKeys.push(...keys);
     cursor = nextCursorStr;
   } while (cursor !== '0');
 
-  console.log(`[${logContext}]: Found ${recipeKeys.length} recipe keys via SCAN.`);
+  serverLogger.log(logContext, `found ${recipeKeys.length} recipe keys via SCAN`);
 
   if (recipeKeys.length === 0) {
     return [];
   }
 
-  // 2. Fetch all recipes in batch
-  console.log(`[${logContext}]: Fetching ${recipeKeys.length} recipes using mget...`);
+  serverLogger.log(logContext, `fetching ${recipeKeys.length} recipes using mget...`);
   const recipesData = await redis.mget<Recipe[]>(...recipeKeys);
-  console.log(`[${logContext}]: Received ${recipesData ? recipesData.length : 'null'} results from mget.`);
+  serverLogger.log(logContext, `received ${recipesData ? recipesData.length : 'null'} results from mget`);
 
-  // 3. Filter out nulls and validate with schema
   const validRecipes = recipesData
     .map((recipe, index) => {
       const key = recipeKeys[index] || 'unknown_key';
-      
+
       if (!recipe) {
-        console.warn(`[${logContext}] Null recipe data found for key index ${index}. Skipping.`);
+        serverLogger.warn(logContext, `null recipe data for key index ${index}, skipping`);
         return null;
       }
 
       const result = schema.safeParse(recipe);
       if (!result.success) {
-        console.warn(
-          `[${logContext}] Invalid recipe data found for key ${key}, skipping: ${JSON.stringify(recipe)}. Error:`,
-          result.error.flatten()
-        );
+        serverLogger.warn(logContext, `invalid recipe data for key ${key}, skipping:`, result.error.flatten());
         return null;
       }
 
@@ -81,7 +58,6 @@ export async function fetchAllRecipes(
     })
     .filter((recipe): recipe is Recipe => recipe !== null);
 
-  console.log(`[${logContext}]: Returning ${validRecipes.length} valid recipes.`);
+  serverLogger.log(logContext, `returning ${validRecipes.length} valid recipes`);
   return validRecipes;
 }
-

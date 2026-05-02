@@ -59,24 +59,14 @@ The app should start at `http://localhost:3000` (or the port Vercel assigns).
 #### Create Recipe (Auth Required)
 1. Sign in if not already signed in
 2. Click "+" button in header (or navigate to `/add-recipe`)
-3. **Manual Entry:**
-   - Fill in recipe form:
-     - Title
-     - Main ingredient
-     - Other ingredients (add multiple)
-     - Instructions (add multiple steps)
-   - Click "Save"
-   - Verify recipe is created and you're redirected to home
-   - Verify new recipe appears in list
-
-4. **URL Scraping:**
-   - Enter a recipe URL (e.g., from a food blog)
-   - Click "Import Recipe"
-   - Wait for scraping to complete
-   - Verify recipe data is populated in form
-   - Review and edit if needed
-   - Click "Save"
-   - Verify recipe is created
+3. Fill in recipe form:
+   - Title
+   - Main ingredient
+   - Other ingredients (add multiple)
+   - Instructions (add multiple steps)
+4. Click "Save"
+5. Verify recipe is created and you're redirected to home
+6. Verify new recipe appears in list
 
 #### View Recipe Details
 1. Click on any recipe card
@@ -101,41 +91,7 @@ The app should start at `http://localhost:3000` (or the port Vercel assigns).
 4. Verify redirect to home page
 5. Verify deleted recipe no longer appears in list
 
-### 4. Test Meal Plan (Auth Required)
-
-#### Generate Meal Plan
-1. Sign in
-2. Navigate to "Plan" page (`/meal-plan`)
-3. If no meal plan exists, click "Generate Meal Plan"
-4. Wait for generation to complete
-5. Verify 7 recipes are displayed (one for each day)
-
-#### View Meal Plan
-1. Navigate to "Plan" page
-2. If meal plan exists, verify it displays
-3. Verify each recipe shows:
-   - Title
-   - Main ingredient
-   - Link to recipe details
-
-#### Reroll Recipe
-1. On meal plan page, click reroll button on any recipe
-2. Wait for reroll to complete
-3. Verify recipe is replaced with a different one
-4. Verify meal plan still has 7 recipes
-
-#### Per-User Isolation Test
-1. Sign in as User A
-2. Generate a meal plan
-3. Sign out
-4. Sign in as User B (different account)
-5. Navigate to meal plan page
-6. Verify User B has no meal plan (or different meal plan)
-7. Generate meal plan for User B
-8. Sign out and sign back in as User A
-9. Verify User A's original meal plan is still there
-
-### 5. Test Error Handling
+### 4. Test Error Handling
 
 #### Network Errors
 1. Disconnect internet
@@ -154,8 +110,6 @@ The app should start at `http://localhost:3000` (or the port Vercel assigns).
 1. Sign out
 2. Try to create/edit/delete recipe
 3. Verify authentication required message
-4. Try to access meal plan
-5. Verify authentication required message
 
 #### React Error Boundary
 1. If a React error occurs, verify:
@@ -163,7 +117,7 @@ The app should start at `http://localhost:3000` (or the port Vercel assigns).
    - Fallback UI displays
    - "Try Again" and "Refresh Page" buttons work
 
-### 6. Test UI/UX
+### 5. Test UI/UX
 
 #### Loading States
 1. Navigate between pages
@@ -181,15 +135,12 @@ The app should start at `http://localhost:3000` (or the port Vercel assigns).
 3. Verify layout adapts correctly
 4. Verify all buttons/links are accessible
 
-### 7. Test Data Persistence
+### 6. Test Data Persistence
 
 #### Refresh Test
 1. Create a recipe
 2. Refresh the page
 3. Verify recipe still exists
-4. Generate a meal plan
-5. Refresh the page
-6. Verify meal plan persists
 
 #### UUID Format Test
 1. Create a new recipe
@@ -206,19 +157,15 @@ While testing, check browser console for:
 Check server logs for:
 - ✅ Authentication verification messages
 - ✅ Recipe fetching logs
-- ✅ Meal plan generation logs
 
 ## 🐛 Known Issues to Watch For
 
 1. **Authentication**: If `CLERK_SECRET_KEY` is not set, auth will fall back to header-based (less secure but functional)
-2. **Meal Plan**: First-time users will see "No meal plan found" until they generate one
-3. **Recipe Scraping**: Requires `OPENAI_API_KEY` to be configured
 
 ## ✅ Success Criteria
 
-All functionality should work as before, with these improvements:
+All functionality should work correctly:
 - ✅ Better security (server-side auth verification)
-- ✅ Per-user meal plans (no shared state)
 - ✅ Better error handling (error boundaries)
 - ✅ Cleaner code (no duplicate code)
 - ✅ Better IDs (UUIDs instead of timestamps)
@@ -231,7 +178,6 @@ Tester: ___________
 
 Authentication: [ ] Pass [ ] Fail
 Recipe CRUD: [ ] Pass [ ] Fail
-Meal Plan: [ ] Pass [ ] Fail
 Error Handling: [ ] Pass [ ] Fail
 UI/UX: [ ] Pass [ ] Fail
 Data Persistence: [ ] Pass [ ] Fail
@@ -240,4 +186,3 @@ Notes:
 _______________________________________
 _______________________________________
 ```
-

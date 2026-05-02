@@ -25,7 +25,17 @@
       "Bash(npm version *)",
       "Bash(node -e \"const z = require\\('./node_modules/zod'\\); console.log\\('preprocess:', typeof z.z?.preprocess ?? typeof z.preprocess\\); console.log\\('ZodSchema:', typeof z.ZodSchema\\); console.log\\('ZodType:', typeof z.ZodType\\);\")",
       "Bash(node -e \"const n = require\\('./node_modules/next/server'\\); console.log\\('NextResponse:', typeof n.NextResponse\\);\")",
-      "Bash(node -e \"const pkg = require\\('./node_modules/uuid/package.json'\\); console.log\\('type:', pkg.type\\); console.log\\('main:', pkg.main\\); console.log\\('exports keys:', Object.keys\\(pkg.exports || {}\\)\\);\")"
+      "Bash(node -e \"const pkg = require\\('./node_modules/uuid/package.json'\\); console.log\\('type:', pkg.type\\); console.log\\('main:', pkg.main\\); console.log\\('exports keys:', Object.keys\\(pkg.exports || {}\\)\\);\")",
+      "Bash(grep -E \"\\\\.\\(json|js|ts|tsx|jsx|md|yml|yaml\\)$\")",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(npm show *)",
+      "Bash(npm search *)",
+      "Bash(claude mcp *)",
+      "mcp__linear-server__get_project",
+      "mcp__linear-server__save_milestone",
+      "mcp__linear-server__save_issue",
+      "mcp__linear-server__list_issues"
     ]
   }
 }
