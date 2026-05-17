@@ -206,6 +206,7 @@ const AddRecipePage: React.FC = () => {
           isSaving={isCreating}
           isDeleting={false}
           error={statusType === 'error' ? statusMessage : null}
+          onImportUrl={(url) => recipeApi.importFromUrl(url, getToken)}
         />
       </div>
     </div>

@@ -119,6 +119,23 @@ export const recipeApi = {
   },
 
   /**
+   * Import recipe from URL using AI extraction
+   */
+  async importFromUrl(url: string, getToken: (() => Promise<string | null>) | null): Promise<Omit<Recipe, 'id'>> {
+    const token = getToken ? await getToken() : null;
+    const response = await fetch('/api/import-recipe', {
+      ...NO_CACHE_OPTIONS,
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(token),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+    return handleApiResponse<Omit<Recipe, 'id'>>(response);
+  },
+
+  /**
    * Delete recipe
    */
   async delete(id: string, getToken: (() => Promise<string | null>) | null): Promise<void> {

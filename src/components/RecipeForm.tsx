@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Recipe, Ingredient } from "../types/recipe";
 import Button from "./Button";
 import Input from "./Input";
-import { Trash2 } from "lucide-react";
+import { Trash2, Download, RefreshCw } from "lucide-react";
 import { STANDARD_UNITS, NO_UNIT } from "../utils/constants";
 
 interface RecipeFormProps {
@@ -16,6 +16,8 @@ interface RecipeFormProps {
   hideFormButtons?: boolean;
   /** Form id for external submit button association */
   formId?: string;
+  /** Callback to import a recipe from a URL. When provided, the URL import field is shown. */
+  onImportUrl?: (url: string) => Promise<Omit<Recipe, "id">>;
 }
 
 const RecipeForm: React.FC<RecipeFormProps> = ({
@@ -27,13 +29,33 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   error,
   hideFormButtons = false,
   formId,
+  onImportUrl,
 }) => {
   const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
+  const [importUrl, setImportUrl] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [hasImported, setHasImported] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Update form when initialRecipe changes
   useEffect(() => {
     setRecipe(initialRecipe);
   }, [initialRecipe]);
+
+  const handleImport = async () => {
+    if (!onImportUrl || !importUrl.trim()) return;
+    setIsImporting(true);
+    setImportError(null);
+    try {
+      const imported = await onImportUrl(importUrl.trim());
+      setRecipe({ ...imported, id: recipe.id });
+      setHasImported(true);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Import failed. Try a different URL.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // --- Helper functions for Edit Mode ---
   const handleIngredientChange = (
@@ -97,6 +119,50 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
       {error && (
         <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-300 rounded">
           Error: {error}
+        </div>
+      )}
+
+      {/* URL Import Field */}
+      {onImportUrl && (
+        <div>
+          <label
+            htmlFor="importUrl"
+            className="block uppercase text-xs font-bold text-stone-400 mb-1"
+          >
+            Import from URL
+          </label>
+          <div className="flex items-center space-x-2">
+            <Input
+              type="url"
+              id="importUrl"
+              value={importUrl}
+              onChange={(e) => {
+                setImportUrl(e.target.value);
+                if (hasImported) setHasImported(false);
+              }}
+              className="flex-grow"
+              placeholder="https://example.com/recipe"
+              disabled={isSaving || isDeleting || isImporting}
+            />
+            <Button
+              type="button"
+              variant="icon"
+              onClick={handleImport}
+              disabled={!importUrl.trim() || isSaving || isDeleting || isImporting}
+              isLoading={isImporting}
+              aria-label={hasImported ? "Re-import recipe" : "Import recipe"}
+              className="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              {hasImported ? (
+                <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
+              ) : (
+                <Download className="h-4 w-4" strokeWidth={1.5} />
+              )}
+            </Button>
+          </div>
+          {importError && (
+            <p className="mt-1 text-xs text-red-600">{importError}</p>
+          )}
         </div>
       )}
 
