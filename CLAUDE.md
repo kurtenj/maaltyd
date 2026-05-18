@@ -41,7 +41,7 @@ Vercel Serverless Functions using Next.js App Router handler convention (`export
 
 - `api/recipes.ts` — `GET` (list all) and `POST` (create) at `/api/recipes`
 - `api/recipe/[id].ts` — `GET`, `PUT`, `DELETE` at `/api/recipe/:id`
-- `api/import-recipe.ts` — `POST` at `/api/import-recipe`: accepts `{ url }`, fetches the page, extracts text via `@mozilla/readability` + `jsdom`, sends to Claude using tool use for structured extraction, validates result against `RecipeCreateSchema`, and returns the recipe data for user review. Auth required.
+- `api/import-recipe.ts` — `POST` at `/api/import-recipe`: accepts `{ url }`, fetches the page, then tries to extract `schema.org/Recipe` from `<script type="application/ld+json">` tags first; falls back to `@mozilla/readability` + `jsdom` text extraction if no JSON-LD is found. Passes whichever content to Claude (tool use, forced `extract_recipe` call) for simplification and structuring, validates against `RecipeCreateSchema`, and returns the recipe data for user review. Auth required. The server log line includes `contentSource` (`json-ld` | `readability` | `raw`) for debugging import failures.
 
 Both GET handlers use the shared `fetchAllRecipes()` utility in `src/utils/recipeFetcher.ts`, which does a Redis `SCAN` for `recipe:*` keys, then `mget`, then validates each result against `RecipeSchema`.
 
@@ -64,6 +64,16 @@ Both GET handlers use the shared `fetchAllRecipes()` utility in `src/utils/recip
 ### AI / URL Import
 
 `api/import-recipe.ts` uses the Anthropic SDK with Claude tool use (`tool_choice: { type: 'tool', name: 'extract_recipe' }`) to force structured JSON output. The default model is `ANTHROPIC_MODEL` from `src/utils/constants.ts` (`claude-haiku-4-5-20251001`), overridable via the `ANTHROPIC_MODEL` env var. The system prompt uses `cache_control: ephemeral` for prompt caching. Only `http:` and `https:` URLs are accepted (SSRF protection).
+
+The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scans all `<script type="application/ld+json">` tags for a `@type: "Recipe"` node (handles both direct objects and `@graph` wrappers); (2) `@mozilla/readability` text extraction; (3) raw HTML tag-stripping. Claude always runs regardless of source — its role is adaptation (flatten ingredient groups, simplify techniques, consolidate steps) not just extraction. `main` and `imageUrl` are intentionally omitted from Claude's output and left for the user to fill in.
+
+### Button component
+
+`Button` (`src/components/Button.tsx`) supports four variants: `primary` (emerald), `secondary` (stone), `danger` (red), `icon` (unstyled). **Padding is not included in any variant** — always pass it via `className` (e.g. `className="px-4 py-2"`). The `isLoading` prop replaces children with a spinner and "Processing…" text.
+
+### RecipeDetailPage structure
+
+`RecipeDetailPage` contains a private `RecipeReadView` sub-component (read-only display with 1×/2×/3× ingredient multiplier and share/copy-link button). When `isEditing` is true, it renders `RecipeForm` with `hideFormButtons` and `formId="recipe-edit-form"`; the parent renders Cancel/Save/Delete buttons outside the form, with the Save button wired via `form="recipe-edit-form"`.
 
 ### Animations
 

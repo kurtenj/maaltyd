@@ -276,7 +276,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
                   onChange={(e) =>
                     handleIngredientChange(index, "name", e.target.value)
                   }
-                  className="flex-grow"
+                  className="grow"
                   disabled={isSaving || isDeleting}
                   required
                 />
@@ -320,7 +320,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
                 value={step}
                 onChange={(e) => handleInstructionChange(index, e.target.value)}
                 rows={3}
-                className="flex-grow px-2 py-1 border border-stone-300 rounded-md shadow-sm sm:text-sm text-stone-900"
+                className="grow px-2 py-1 border border-stone-300 rounded-md shadow-sm sm:text-sm text-stone-900"
                 disabled={isSaving || isDeleting}
                 placeholder={`Step ${index + 1}`}
                 required

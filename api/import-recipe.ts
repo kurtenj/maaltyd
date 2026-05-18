@@ -24,18 +24,24 @@ const ExtractedRecipeSchema = z.object({
   instructions: z.array(z.string().min(1)).min(1),
 });
 
-const SYSTEM_PROMPT = `You are a recipe extraction assistant. Extract structured recipe data from the provided web page text and call the extract_recipe tool with the result.
+const SYSTEM_PROMPT = `You are a recipe adaptation assistant for Maaltyd, a home cooking app. Your job is to take a recipe — provided as either structured JSON-LD data or plain web page text — and adapt it into a clean, simplified version suited for home cooks. Call the extract_recipe tool with the result.
 
-If the page does not contain a recipe, call the tool with has_recipe: false and omit all other fields.
+If no recipe is present, call the tool with has_recipe: false and omit all other fields.
 
-Rules for extraction:
+Simplification goals:
+- Maaltyd uses a flat ingredient list with no sub-groups. Merge all ingredient sections (e.g. "for the sauce", "for the marinade", "for the dough") into a single unified list, combining duplicate ingredients where it makes sense.
+- Simplify restaurant-style or overly technical techniques to practical home equivalents.
+- Consolidate micro-steps into clear, meaningful instructions. Each step should be a complete action a home cook can follow without professional training.
+- Remove optional flourishes (elaborate plating, specialty garnishes) unless they are central to the dish.
+
+Extraction rules:
 - "title": the recipe name as written
 - "other": ALL ingredients with quantities. Every ingredient needs a numeric quantity.
   - Convert fractions to decimals: 1/2 → 0.5, 1/4 → 0.25, 3/4 → 0.75
   - For "to taste" or unmeasured items, use 0.25 as the quantity
   - For "unit", use ONLY one of these exact values: ${STANDARD_UNITS.filter(u => u !== '').join(', ')}, or "" (empty string) for unitless items like eggs or cloves
   - Map non-standard units to the closest standard unit (e.g. "stick of butter" → 0.5 cup)
-- "instructions": each step as a complete sentence or short paragraph, as written`;
+- "instructions": each step as a clear, complete sentence written in plain language`;
 
 const extractRecipeTool: Anthropic.Tool = {
   name: 'extract_recipe',
@@ -70,6 +76,35 @@ const extractRecipeTool: Anthropic.Tool = {
     required: ['has_recipe'],
   },
 };
+
+function extractRecipeNode(data: unknown): Record<string, unknown> | null {
+  if (!data || typeof data !== 'object') return null;
+  const obj = data as Record<string, unknown>;
+  const type = obj['@type'];
+  if (type === 'Recipe' || (Array.isArray(type) && type.includes('Recipe'))) {
+    return obj;
+  }
+  if (Array.isArray(obj['@graph'])) {
+    for (const item of obj['@graph']) {
+      const found = extractRecipeNode(item);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function findRecipeJsonLd(document: Document): string | null {
+  const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+  for (const script of scripts) {
+    try {
+      const found = extractRecipeNode(JSON.parse(script.textContent ?? ''));
+      if (found) return JSON.stringify(found, null, 2);
+    } catch {
+      // malformed JSON — skip
+    }
+  }
+  return null;
+}
 
 function getHttpErrorMessage(status: number): string {
   if (status === 403) {
@@ -121,7 +156,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   let html: string;
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RecipeImporter/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' },
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
@@ -137,21 +172,31 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ message }, { status: 422 });
   }
 
-  // Extract readable content using Readability
+  // Build page content for Claude: prefer structured JSON-LD, fall back to Readability
   let pageContent: string;
+  let contentSource: 'json-ld' | 'readability' | 'raw';
   try {
     const dom = new JSDOM(html, { url });
-    const reader = new Readability(dom.window.document);
-    const article = reader.parse();
-    pageContent = article?.textContent?.trim() ?? '';
-    if (!pageContent) {
-      pageContent = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 15000);
+    const jsonLd = findRecipeJsonLd(dom.window.document);
+    if (jsonLd) {
+      pageContent = jsonLd;
+      contentSource = 'json-ld';
     } else {
-      pageContent = pageContent.substring(0, 15000);
+      const reader = new Readability(dom.window.document);
+      const article = reader.parse();
+      const text = article?.textContent?.trim() ?? '';
+      if (text) {
+        pageContent = text.substring(0, 15000);
+        contentSource = 'readability';
+      } else {
+        pageContent = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 15000);
+        contentSource = 'raw';
+      }
     }
   } catch (error) {
-    serverLogger.error(MOD, 'Readability error:', error);
+    serverLogger.error(MOD, 'Content extraction error:', error);
     pageContent = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 15000);
+    contentSource = 'raw';
   }
 
   if (pageContent.length < THIN_CONTENT_THRESHOLD) {
@@ -164,7 +209,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  serverLogger.log(MOD, `Extracted ${pageContent.length} chars of content`);
+  serverLogger.log(MOD, `Extracted ${pageContent.length} chars via ${contentSource}`);
 
   // Call Claude
   let toolInput: Record<string, unknown>;
