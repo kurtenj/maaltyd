@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Recipe, Ingredient } from "../types/recipe";
 import Button from "./Button";
 import Input from "./Input";
-import { Trash2, Download, RefreshCw } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import CookingPotIcon from "./CookingPotIcon";
 import { STANDARD_UNITS, NO_UNIT } from "../utils/constants";
 
 interface RecipeFormProps {
@@ -51,7 +52,11 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
       setRecipe({ ...imported, id: recipe.id });
       setHasImported(true);
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : "Import failed. Try a different URL.");
+      setImportError(
+        err instanceof Error
+          ? err.message
+          : "Import failed. Try a different URL.",
+      );
     } finally {
       setIsImporting(false);
     }
@@ -61,7 +66,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   const handleIngredientChange = (
     index: number,
     field: keyof Omit<Ingredient, "id">,
-    value: string | number
+    value: string | number,
   ) => {
     const updatedIngredients = [...recipe.other];
     let processedValue: string | number = value;
@@ -103,7 +108,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
 
   const removeInstruction = (index: number) => {
     const updatedInstructions = recipe.instructions.filter(
-      (_, i) => i !== index
+      (_, i) => i !== index,
     );
     setRecipe({ ...recipe, instructions: updatedInstructions });
   };
@@ -129,10 +134,10 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
             htmlFor="importUrl"
             className="block uppercase text-xs font-bold text-stone-400 mb-1"
           >
-            Import from URL
+            Import from URL (Optional)
           </label>
-          <div className="flex items-center space-x-2">
-            <Input
+          <div className="flex items-center rounded-[10px] p-2 bg-neutral-200">
+            <input
               type="url"
               id="importUrl"
               value={importUrl}
@@ -140,25 +145,25 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
                 setImportUrl(e.target.value);
                 if (hasImported) setHasImported(false);
               }}
-              className="flex-grow"
+              className="grow h-10 mr-2 rounded-lg py-1 px-3 bg-white text-sm text-stone-900 placeholder:text-stone-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="https://example.com/recipe"
               disabled={isSaving || isDeleting || isImporting}
             />
-            <Button
+            <button
               type="button"
-              variant="icon"
               onClick={handleImport}
-              disabled={!importUrl.trim() || isSaving || isDeleting || isImporting}
-              isLoading={isImporting}
+              disabled={
+                !importUrl.trim() || isSaving || isDeleting || isImporting
+              }
               aria-label={hasImported ? "Re-import recipe" : "Import recipe"}
-              className="flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              className="flex items-center justify-center shrink-0 size-10 rounded-md bg-stone-900 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {hasImported ? (
-                <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
-              ) : (
-                <Download className="h-4 w-4" strokeWidth={1.5} />
-              )}
-            </Button>
+              <CookingPotIcon
+                size={18}
+                className="text-white"
+                isAnimating={isImporting}
+              />
+            </button>
           </div>
           {importError && (
             <p className="mt-1 text-xs text-red-600">{importError}</p>
@@ -196,8 +201,10 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
         <Input
           type="url"
           id="imageUrl"
-          value={recipe.imageUrl || ''} // Ensure value is not undefined
-          onChange={(e) => setRecipe({ ...recipe, imageUrl: e.target.value || undefined })}
+          value={recipe.imageUrl || ""} // Ensure value is not undefined
+          onChange={(e) =>
+            setRecipe({ ...recipe, imageUrl: e.target.value || undefined })
+          }
           className="w-full"
           placeholder="https://example.com/image.jpg"
           disabled={isSaving || isDeleting}
