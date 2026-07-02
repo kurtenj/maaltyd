@@ -4,6 +4,7 @@ import { Recipe } from "../types/recipe";
 import Button from "../components/Button";
 import RecipeForm from "../components/RecipeForm";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
+import RecipeDetailSkeleton from "../components/RecipeDetailSkeleton";
 import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
@@ -293,9 +294,13 @@ const RecipeDetailPage: React.FC = () => {
 
   if (isFetchingDetails) {
     return (
-      <p className="text-center text-stone-500 italic py-10">
-        Loading recipe...
-      </p>
+      <div className="min-h-screen">
+        <div className="max-w-2xl mx-auto p-1">
+          <div className="bg-white p-5 rounded-xl">
+            <RecipeDetailSkeleton />
+          </div>
+        </div>
+      </div>
     );
   }
 

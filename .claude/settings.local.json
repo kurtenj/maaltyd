@@ -58,7 +58,14 @@
       "Bash(D=\"C:\\\\Users\\\\Jonathan\\\\AppData\\\\Local/npm-cache/_npx/81e833f6d16d6127/node_modules/react-doctor\"; grep -o \"api/\\\\|serverless\\\\|entryPoint[a-zA-Z]*\\\\|entry-point\\\\|vercel\" \"$D/dist/chunk-N93fKeF6.js\" | sort -u | head -50)",
       "Bash(node -e ' *)",
       "WebFetch(domain:socket.dev)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(npm run *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(timeout 60 npx --yes playwright@1.61.1 --version)",
+      "Bash(timeout 100 npx --yes playwright@1.61.1 install chromium)"
     ]
   }
 }

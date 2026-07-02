@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useRecipes } from '../hooks/useRecipes';
 import RecipeCard from '../components/RecipeCard';
+import RecipeCardSkeleton from '../components/RecipeCardSkeleton';
 import { ROUTES } from '../utils/navigation';
 import { getRecentRecipeIds } from '../utils/recentRecipes';
 
@@ -21,17 +22,30 @@ const HomePage: React.FC = () => {
     handleMainIngredientChange,
   } = useRecipes();
 
+  const recentIds = useMemo(() => getRecentRecipeIds(), []);
+
   const recentRecipes = useMemo(() => {
     if (!allRecipes.length) return [];
-    const ids = getRecentRecipeIds();
-    return ids
+    return recentIds
       .map((id) => allRecipes.find((r) => r.id === id))
       .filter((r): r is NonNullable<typeof r> => r !== undefined);
-  }, [allRecipes]);
+  }, [allRecipes, recentIds]);
 
   return (
     <div className="min-h-screen">
       {/* Last Viewed */}
+      {isLoading && recentIds.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-2xl font-semibold text-stone-900 mb-4">Last Viewed</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {recentIds.slice(0, 3).map((id, index) => (
+              <div key={id} className={index > 0 ? 'hidden lg:block' : undefined}>
+                <RecipeCardSkeleton />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {!isLoading && recentRecipes.length > 0 && (
         <div className="mb-10">
           <h2 className="text-2xl font-semibold text-stone-900 mb-4">Last Viewed</h2>
@@ -91,9 +105,11 @@ const HomePage: React.FC = () => {
 
         {/* Loading or Recipe List Display */}
         {isLoading ? (
-          <p className="text-center text-stone-500 italic">
-            Loading recipes...
-          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <RecipeCardSkeleton key={index} />
+            ))}
+          </div>
         ) : filteredRecipes.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-stone-500 mb-4">
