@@ -66,7 +66,9 @@
       "Bash(npx --no-install playwright --version)",
       "Bash(timeout 60 npx --yes playwright@1.61.1 --version)",
       "Bash(timeout 100 npx --yes playwright@1.61.1 install chromium)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(p.dependencies.motion || p.devDependencies?.motion || 'not found'\\)\")",
+      "Bash(npx -y -p playwright@1.61.1 -c \"node /tmp/pw_test.js\")"
     ]
   }
 }
