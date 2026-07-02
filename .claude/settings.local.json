@@ -39,7 +39,26 @@
       "mcp__linear-server__list_projects",
       "mcp__linear-server__list_milestones",
       "Bash(npx tsc *)",
-      "Bash(Select-String -Pattern \"readability|jsdom|anthropic|mozilla\")"
+      "Bash(Select-String -Pattern \"readability|jsdom|anthropic|mozilla\")",
+      "Bash(npm ls *)",
+      "Bash(npx react-doctor@latest --help)",
+      "Bash(npx react-doctor@latest why api/recipes.ts)",
+      "Bash(npx react-doctor@latest rules)",
+      "Bash(npx react-doctor@latest why api/recipes.ts:0)",
+      "Bash(npx react-doctor@latest why api/recipes.ts:1)",
+      "Bash(npx react-doctor@latest rules explain deslop/unused-file)",
+      "Bash(npx react-doctor@latest rules explain deslop/unused-dependency)",
+      "Bash(npx react-doctor@latest rules explain react-doctor/no-vulnerable-react-server-components)",
+      "Bash(npx react-doctor@latest rules list)",
+      "Bash(npm root *)",
+      "Read(//c/Users/Jonathan/AppData/Local/npm-cache/_npx/**)",
+      "Read(//c//**)",
+      "Read(//c/Users/Jonathan/AppData/Local/npm-cache/_npx/81e833f6d16d6127/node_modules/react-doctor/**)",
+      "Read(//c/Users/Jonathan/AppData/Local/npm-cache/_npx/81e833f6d16d6127/node_modules/react-doctor/dist/**)",
+      "Bash(D=\"C:\\\\Users\\\\Jonathan\\\\AppData\\\\Local/npm-cache/_npx/81e833f6d16d6127/node_modules/react-doctor\"; grep -o \"api/\\\\|serverless\\\\|entryPoint[a-zA-Z]*\\\\|entry-point\\\\|vercel\" \"$D/dist/chunk-N93fKeF6.js\" | sort -u | head -50)",
+      "Bash(node -e ' *)",
+      "WebFetch(domain:socket.dev)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
