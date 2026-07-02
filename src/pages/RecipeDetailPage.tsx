@@ -5,6 +5,8 @@ import Button from "../components/Button";
 import RecipeForm from "../components/RecipeForm";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
 import RecipeDetailSkeleton from "../components/RecipeDetailSkeleton";
+import RecipeCard from "../components/RecipeCard";
+import RecipeCardSkeleton from "../components/RecipeCardSkeleton";
 import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
@@ -164,6 +166,9 @@ const RecipeDetailPage: React.FC = () => {
   const [isFetchingDetails, setIsFetchingDetails] = useState<boolean>(true);
   const [detailError, setDetailError] = useState<string | null>(null);
 
+  const [relatedRecipes, setRelatedRecipes] = useState<Recipe[]>([]);
+  const [isLoadingRelated, setIsLoadingRelated] = useState<boolean>(true);
+
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editableRecipe, setEditableRecipe] = useState<Recipe | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -258,6 +263,8 @@ const RecipeDetailPage: React.FC = () => {
     setEditableRecipe(null);
     setDetailError(null);
     setIsFetchingDetails(true);
+    setRelatedRecipes([]);
+    setIsLoadingRelated(true);
 
     const actualRecipeIdFromUrl = params.recipeId;
 
@@ -274,11 +281,30 @@ const RecipeDetailPage: React.FC = () => {
           setDetailError(error.message);
           setRecipe(null);
           setEditableRecipe(null);
+          setIsLoadingRelated(false);
         } else if (data) {
           setRecipe(data);
           setEditableRecipe(deepCopy(data));
           setDetailError(null);
           recordRecentRecipe(data.id);
+
+          const [allRecipes, relatedError] = await tryCatchAsync(
+            () => recipeApi.getAll(),
+            "RecipeDetailPage",
+            "Failed to load related recipes"
+          );
+
+          if (relatedError) {
+            logger.error("RecipeDetailPage", "Error fetching related recipes:", relatedError);
+          } else if (allRecipes) {
+            setRelatedRecipes(
+              allRecipes
+                .filter((r) => r.main === data.main && r.id !== data.id)
+                .slice(0, 2)
+            );
+          }
+
+          setIsLoadingRelated(false);
         }
 
         setIsFetchingDetails(false);
@@ -288,6 +314,7 @@ const RecipeDetailPage: React.FC = () => {
     } else {
       logger.warn("RecipeDetailPage", "No recipe ID found in URL parameters.");
       setIsFetchingDetails(false);
+      setIsLoadingRelated(false);
       setDetailError("No recipe ID provided.");
     }
   }, [params.recipeId]);
@@ -384,6 +411,25 @@ const RecipeDetailPage: React.FC = () => {
             </Button>
           </div>
         </SignedIn>
+
+        {!isEditing && (isLoadingRelated || relatedRecipes.length > 0) && (
+          <div className="mt-10">
+            <h2 className="text-2xl font-semibold text-stone-900 mb-4">Related Recipes</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {isLoadingRelated
+                ? Array.from({ length: 2 }).map((_, index) => (
+                    <div key={index} className={index > 0 ? 'hidden lg:block' : undefined}>
+                      <RecipeCardSkeleton />
+                    </div>
+                  ))
+                : relatedRecipes.map((related, index) => (
+                    <div key={related.id} className={index > 0 ? 'hidden lg:block' : undefined}>
+                      <RecipeCard recipe={related} />
+                    </div>
+                  ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

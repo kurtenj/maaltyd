@@ -27,6 +27,7 @@ vi.mock("../hooks/useRecipes", () => ({
 vi.mock("../services/api", () => ({
   recipeApi: {
     getById: vi.fn(),
+    getAll: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
   },
@@ -60,6 +61,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(reactRouter.useParams).mockReturnValue({ recipeId: "1" });
   vi.mocked(recipeApi.getById).mockResolvedValue(sampleRecipe);
+  vi.mocked(recipeApi.getAll).mockResolvedValue([]);
 });
 
 const sampleRecipe: Recipe = {
@@ -161,6 +163,45 @@ describe("RecipeDetailPage - Sharing Functionality", () => {
     });
     // Share button is not rendered when recipe is null - component returns early with error UI
     expect(screen.queryByTitle(/Share recipe/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("RecipeDetailPage - Related Recipes", () => {
+  const otherChickenRecipe: Recipe = {
+    id: "2",
+    title: "Other Chicken Recipe",
+    main: "chicken",
+    instructions: ["Step 1"],
+    other: [],
+  };
+  const beefRecipe: Recipe = {
+    id: "3",
+    title: "Beef Recipe",
+    main: "beef",
+    instructions: ["Step 1"],
+    other: [],
+  };
+
+  test("shows recipes sharing the same main ingredient, excluding the current recipe", async () => {
+    vi.mocked(recipeApi.getAll).mockResolvedValue([sampleRecipe, otherChickenRecipe, beefRecipe]);
+
+    render(<RecipeDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Related Recipes")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Other Chicken Recipe")).toBeInTheDocument();
+    expect(screen.queryByText("Beef Recipe")).not.toBeInTheDocument();
+  });
+
+  test("does not render the Related Recipes section when there are no matches", async () => {
+    vi.mocked(recipeApi.getAll).mockResolvedValue([sampleRecipe, beefRecipe]);
+
+    await renderComponentAndWaitForRecipe();
+
+    await waitFor(() => {
+      expect(screen.queryByText("Related Recipes")).not.toBeInTheDocument();
+    });
   });
 });
 

@@ -65,7 +65,8 @@
       "Bash(chromium-cli --help)",
       "Bash(npx --no-install playwright --version)",
       "Bash(timeout 60 npx --yes playwright@1.61.1 --version)",
-      "Bash(timeout 100 npx --yes playwright@1.61.1 install chromium)"
+      "Bash(timeout 100 npx --yes playwright@1.61.1 install chromium)",
+      "Bash(npx vitest *)"
     ]
   }
 }
