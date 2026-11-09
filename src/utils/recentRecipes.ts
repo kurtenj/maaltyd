@@ -10,6 +10,8 @@ export function getRecentRecipeIds(): string[] {
 }
 
 export function recordRecentRecipe(id: string): void {
+  // Skeletons render the detail view with sample data (ids "sample-*"); never record those
+  if (id.startsWith('sample-')) return;
   const ids = getRecentRecipeIds().filter((rid) => rid !== id);
   ids.unshift(id);
   try {

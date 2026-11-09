@@ -29,7 +29,7 @@ npx vitest run src/components/Header.test.tsx
 - `page.tsx` (`/`) — server component; loads recipes with `fetchAllRecipes()` and passes them to the `HomePage` view.
 - `recipe/[recipeId]/page.tsx` — server component; loads the recipe + related recipes, sets `generateMetadata` (title / Open Graph image) and calls `notFound()` for missing IDs.
 - `add-recipe/page.tsx` — renders the `AddRecipePage` view.
-- `loading.tsx`, `error.tsx`, `not-found.tsx` — skeletons, error boundary, 404.
+- `error.tsx`, `not-found.tsx` — error boundary, 404. (No `loading.tsx` — see Skeletons below.)
 - Recipe pages use `export const dynamic = 'force-dynamic'` because Redis reads don't go through `fetch` and would otherwise be frozen at build time.
 
 ### Views (`src/views/`)
@@ -95,6 +95,15 @@ The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scan
 ### RecipeDetailPage structure
 
 `RecipeDetailPage` contains a private `RecipeReadView` sub-component (read-only display with 1×/2×/3× ingredient multiplier and share/copy-link button). When `isEditing` is true, it renders `RecipeForm` with `hideFormButtons` and `formId="recipe-edit-form"`; the parent renders Cancel/Save/Delete buttons outside the form, with the Save button wired via `form="recipe-edit-form"`.
+
+### Skeletons (Skullet)
+
+Loading states use [Skullet](https://skullet.lochie.me/docs), which renders the **real component with sample data** invisibly, measures it, and draws a skeleton in that exact shape — there are no hand-built skeleton components.
+
+- `SkeletonProvider` (`src/components/SkeletonProvider.tsx`, client component) sets the app-wide look in the root layout: `mode="light"`, `theme={{ animation: 'shimmer' }}`, `reveal={{ ...smart, enter: { translate: '0 8px' } }}` ("smart" reveal with a "rise" entrance).
+- Pages wrap their async data in `<SkeletonSuspense id=… skeleton={<View …sampleData />}>` (see `src/app/page.tsx`, `src/app/recipe/[recipeId]/page.tsx`). Sample data lives in `src/utils/sampleRecipes.ts`; sample ids are `sample-*` and `recordRecentRecipe` ignores them, since the skeleton's effects really run.
+- Client-only content (e.g. "Last Viewed" from localStorage in `HomePage`) uses `<Skeleton id=… loading={…}>` so it reveals instead of popping in.
+- `id` makes Skullet remember the real shape for repeat visits. Add `?skullet-debug` to a URL to see whether reveals move the page.
 
 ### Animations
 

@@ -4,6 +4,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import PageTransition from '../components/PageTransition';
+import SkeletonProvider from '../components/SkeletonProvider';
 import './globals.css';
 
 const bricolage = Bricolage_Grotesque({
@@ -40,13 +41,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider afterSignOutUrl="/">
       <html lang="en" className={bricolage.variable}>
         <body>
-          <div className="min-h-screen flex flex-col bg-stone-100">
-            <Header />
-            <main className="grow container mx-auto p-4 overflow-x-hidden">
-              <PageTransition>{children}</PageTransition>
-            </main>
-            <Footer />
-          </div>
+          <SkeletonProvider>
+            <div className="min-h-screen flex flex-col bg-stone-100">
+              <Header />
+              <main className="grow container mx-auto p-4 overflow-x-hidden">
+                <PageTransition>{children}</PageTransition>
+              </main>
+              <Footer />
+            </div>
+          </SkeletonProvider>
         </body>
       </html>
     </ClerkProvider>
