@@ -7,10 +7,21 @@ import { verifyAuth } from '../../../utils/auth';
 import { serverLogger } from '../../../utils/serverLogger';
 import { STANDARD_UNITS, ANTHROPIC_MODEL } from '../../../utils/constants';
 import { IngredientSchema } from '../../../utils/apiSchemas';
+import { Ratelimit } from '@upstash/ratelimit';
+import { redis } from '../../../utils/redisClient';
+import { safeFetchText, UnsafeUrlError, ResponseTooLargeError, HttpStatusError } from '../../../utils/safeFetch';
 
 const MOD = 'api/import-recipe';
 const MODEL = process.env.ANTHROPIC_MODEL ?? ANTHROPIC_MODEL;
 const THIN_CONTENT_THRESHOLD = 500;
+const MAX_PAGE_BYTES = 3 * 1024 * 1024;
+
+// Each import costs a Claude call, so cap it per signed-in user
+const importRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, '1 h'),
+  prefix: 'ratelimit:import',
+});
 
 // Created lazily so a missing API key fails the request, not the build
 let client: Anthropic | null = null;
@@ -126,6 +137,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
   }
 
+  const { success, reset } = await importRateLimit.limit(userId);
+  if (!success) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+    const minutes = Math.ceil(retryAfterSeconds / 60);
+    return NextResponse.json(
+      { message: `You've hit the import limit. Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.` },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
+    );
+  }
+
   let url: string;
   try {
     const body = await request.json();
@@ -154,16 +175,28 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   let html: string;
   try {
-    const res = await fetch(url, {
+    html = await safeFetchText(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' },
-      signal: AbortSignal.timeout(10000),
+      timeoutMs: 10_000,
+      maxBytes: MAX_PAGE_BYTES,
     });
-    if (!res.ok) {
-      return NextResponse.json({ message: getHttpErrorMessage(res.status) }, { status: 422 });
-    }
-    html = await res.text();
   } catch (error) {
     serverLogger.error(MOD, 'Fetch error:', error);
+    if (error instanceof HttpStatusError) {
+      return NextResponse.json({ message: getHttpErrorMessage(error.status) }, { status: 422 });
+    }
+    if (error instanceof UnsafeUrlError) {
+      return NextResponse.json(
+        { message: "That address can't be imported. Use a public recipe page URL (e.g. https://example.com/recipe)." },
+        { status: 400 }
+      );
+    }
+    if (error instanceof ResponseTooLargeError) {
+      return NextResponse.json(
+        { message: 'That page is too large to import. Try a print-friendly version of the recipe.' },
+        { status: 422 }
+      );
+    }
     const isTimeout = error instanceof Error && error.name === 'TimeoutError';
     const message = isTimeout
       ? 'The request timed out. The site may be slow — try again, or try a different URL.'
