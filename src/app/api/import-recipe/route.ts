@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { z } from 'zod';
@@ -27,16 +28,31 @@ const importRateLimit = new Ratelimit({
 let client: Anthropic | null = null;
 const getClient = () => (client ??= new Anthropic());
 
-// Validates only the fields Claude extracts — main and imageUrl are left for the user to fill in
+// Shape Claude must produce (enforced by structured outputs). Every field is required by
+// structured outputs, so "no recipe" is signalled with has_recipe: false and empty values.
+const ClaudeRecipeOutputSchema = z.object({
+  has_recipe: z.boolean(),
+  title: z.string(),
+  other: z.array(
+    z.object({
+      name: z.string(),
+      quantity: z.number(),
+      unit: z.enum(STANDARD_UNITS),
+    })
+  ),
+  instructions: z.array(z.string()),
+});
+
+// Stricter check on the result — main and imageUrl are left for the user to fill in
 const ExtractedRecipeSchema = z.object({
   title: z.string().min(1),
   other: z.array(IngredientSchema).min(1),
   instructions: z.array(z.string().min(1)).min(1),
 });
 
-const SYSTEM_PROMPT = `You are a recipe adaptation assistant for Maaltyd, a home cooking app. Your job is to take a recipe — provided as either structured JSON-LD data or plain web page text — and adapt it into a clean, simplified version suited for home cooks. Call the extract_recipe tool with the result.
+const SYSTEM_PROMPT = `You are a recipe adaptation assistant for Maaltyd, a home cooking app. Your job is to take a recipe — provided as either structured JSON-LD data or plain web page text — and adapt it into a clean, simplified version suited for home cooks.
 
-If no recipe is present, call the tool with has_recipe: false and omit all other fields.
+If no recipe is present, set has_recipe to false, title to an empty string, and other and instructions to empty lists.
 
 Simplification goals:
 - Maaltyd uses a flat ingredient list with no sub-groups. Merge all ingredient sections (e.g. "for the sauce", "for the marinade", "for the dough") into a single unified list, combining duplicate ingredients where it makes sense.
@@ -46,46 +62,12 @@ Simplification goals:
 
 Extraction rules:
 - "title": the recipe name as written
-- "other": ALL ingredients with quantities. Every ingredient needs a numeric quantity.
+- "other": ALL ingredients with quantities. Every ingredient needs a numeric quantity greater than 0.
   - Convert fractions to decimals: 1/2 → 0.5, 1/4 → 0.25, 3/4 → 0.75
   - For "to taste" or unmeasured items, use 0.25 as the quantity
-  - For "unit", use ONLY one of these exact values: ${STANDARD_UNITS.filter(u => u !== '').join(', ')}, or "" (empty string) for unitless items like eggs or cloves
+  - "unit" must be one of the allowed values; use "" (empty string) for unitless items like eggs or cloves
   - Map non-standard units to the closest standard unit (e.g. "stick of butter" → 0.5 cup)
 - "instructions": each step as a clear, complete sentence written in plain language`;
-
-const extractRecipeTool: Anthropic.Tool = {
-  name: 'extract_recipe',
-  description: 'Extract structured recipe data from web page content, or signal that no recipe was found',
-  input_schema: {
-    type: 'object',
-    properties: {
-      has_recipe: {
-        type: 'boolean',
-        description: 'Whether a recipe was found on the page',
-      },
-      title: { type: 'string', description: 'Recipe title' },
-      other: {
-        type: 'array',
-        description: 'All ingredients with quantities',
-        items: {
-          type: 'object',
-          properties: {
-            name: { type: 'string' },
-            quantity: { type: 'number' },
-            unit: { type: 'string', description: 'Standard unit or empty string' },
-          },
-          required: ['name', 'quantity', 'unit'],
-        },
-      },
-      instructions: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Step-by-step instructions',
-      },
-    },
-    required: ['has_recipe'],
-  },
-};
 
 function extractRecipeNode(data: unknown): Record<string, unknown> | null {
   if (!data || typeof data !== 'object') return null;
@@ -244,28 +226,44 @@ export async function POST(request: Request): Promise<NextResponse> {
   serverLogger.log(MOD, `Extracted ${pageContent.length} chars via ${contentSource}`);
 
   // Call Claude
-  let toolInput: Record<string, unknown>;
+  let output: z.infer<typeof ClaudeRecipeOutputSchema>;
   try {
-    const response = await getClient().messages.create({
+    const response = await getClient().messages.parse({
       model: MODEL,
-      max_tokens: 2048,
+      max_tokens: 16000, // leaves room for adaptive thinking before the JSON answer
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-      tools: [extractRecipeTool],
-      tool_choice: { type: 'tool', name: 'extract_recipe' },
+      output_config: {
+        effort: 'low',
+        format: zodOutputFormat(ClaudeRecipeOutputSchema),
+      },
       messages: [{ role: 'user', content: pageContent }],
     });
 
-    const toolUse = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
-    if (!toolUse) {
+    serverLogger.log(MOD, 'Claude usage:', {
+      stop_reason: response.stop_reason,
+      input: response.usage.input_tokens,
+      output: response.usage.output_tokens,
+      cache_read: response.usage.cache_read_input_tokens,
+      cache_write: response.usage.cache_creation_input_tokens,
+    });
+
+    if (response.stop_reason === 'refusal') {
+      return NextResponse.json(
+        { message: "This page couldn't be processed. Try a different recipe URL." },
+        { status: 422 }
+      );
+    }
+    if (!response.parsed_output) {
+      serverLogger.error(MOD, `No parsed output (stop_reason: ${response.stop_reason})`);
       return NextResponse.json({ message: 'Recipe extraction failed — please try again.' }, { status: 500 });
     }
-    toolInput = toolUse.input as Record<string, unknown>;
+    output = response.parsed_output;
   } catch (error) {
     serverLogger.error(MOD, 'Claude API error:', error);
     return NextResponse.json({ message: 'Recipe extraction failed — please try again.' }, { status: 500 });
   }
 
-  if (!toolInput.has_recipe) {
+  if (!output.has_recipe) {
     return NextResponse.json(
       {
         message:
@@ -275,7 +273,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const parsed = ExtractedRecipeSchema.safeParse(toolInput);
+  const { has_recipe: _hasRecipe, ...recipeFields } = output;
+  const parsed = ExtractedRecipeSchema.safeParse(recipeFields);
   if (!parsed.success) {
     serverLogger.error(MOD, 'Schema validation failed:', parsed.error.flatten());
     return NextResponse.json(

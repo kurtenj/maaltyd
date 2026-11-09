@@ -124,7 +124,8 @@ const AddRecipePage: React.FC = () => {
 
     if (newRecipe) {
       logger.log('AddRecipePage', 'Recipe created successfully:', newRecipe);
-      router.push(ROUTES.RECIPE_DETAIL(newRecipe.id));
+      // The photo is generated in the background; the detail page waits for it
+      router.push(ROUTES.RECIPE_DETAIL_AWAITING_IMAGE(newRecipe.id));
     }
 
     setIsCreating(false);

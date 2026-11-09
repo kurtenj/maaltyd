@@ -66,3 +66,6 @@ docs/
 # Next.js
 .next
 next-env.d.ts
+
+# Backfill script records (contain old image URLs)
+scripts/backfill-output/

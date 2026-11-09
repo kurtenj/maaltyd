@@ -86,4 +86,34 @@ describe('RecipeForm', () => {
     expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
     expect(screen.queryByText('Save Recipe')).not.toBeInTheDocument();
   });
+
+  it('has no image URL field, and explains photos are generated when creating', () => {
+    renderForm();
+    expect(screen.queryByText('Generate new photo')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/image url/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/photo will be generated automatically/i)).toBeInTheDocument();
+  });
+
+  it('shows the new photo after regenerating, and keeps it on save', async () => {
+    const onRegenerateImage = vi.fn().mockResolvedValue('https://img.example.com/new.webp');
+    const { onSave } = renderForm({ onRegenerateImage });
+
+    fireEvent.click(screen.getByText('Generate new photo'));
+    await waitFor(() => {
+      expect(screen.getByAltText('Photo of Test Recipe')).toHaveAttribute('src', 'https://img.example.com/new.webp');
+    });
+
+    fireEvent.click(screen.getByText('Save Recipe'));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ imageUrl: 'https://img.example.com/new.webp' }));
+    });
+  });
+
+  it('shows an error when photo generation fails', async () => {
+    const onRegenerateImage = vi.fn().mockRejectedValue(new Error('Rate limited'));
+    renderForm({ onRegenerateImage });
+
+    fireEvent.click(screen.getByText('Generate new photo'));
+    expect(await screen.findByText('Rate limited')).toBeInTheDocument();
+  });
 });

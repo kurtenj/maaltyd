@@ -9,7 +9,8 @@
     "lint": "eslint . -c eslint.config.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "backfill:images": "tsx --env-file=.env.local scripts/backfill-recipe-images.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
@@ -19,10 +20,12 @@
     "@tailwindcss/postcss": "^4.1.5",
     "@upstash/ratelimit": "^2.2.0",
     "@upstash/redis": "^1.34.7",
+    "@vercel/blob": "^2.9.0",
     "jsdom": "^26.1.0",
     "lucide-react": "^1.8.0",
     "motion": "^12.38.0",
     "next": "^16.4.5",
+    "openai": "^7.54.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "zod": "^4.3.6"
@@ -43,6 +46,7 @@
     "globals": "^17.5.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.3",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.0",
     "vite": "^8.0.9",

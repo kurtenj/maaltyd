@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { RecipeUpdateSchema } from '../../../../utils/apiSchemas';
 import { redis, getRecipeKey } from '../../../../utils/redisClient';
-import { fetchRecipeById } from '../../../../utils/recipeFetcher';
+import { fetchRecipeById, getRecipeById } from '../../../../utils/recipeFetcher';
 import { verifyAuth } from '../../../../utils/auth';
 import { serverLogger } from '../../../../utils/serverLogger';
 import type { Recipe } from '../../../../types/recipe';
@@ -81,9 +81,15 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<N
     );
   }
 
-  const recipeToSave = { ...validationResult.data, id } as Recipe;
-
   try {
+    // Photos are only changed via POST /api/recipe/:id/image, so keep the stored one
+    const existing = await getRecipeById(id);
+    if (!existing) {
+      return NextResponse.json({ message: 'Recipe not found.' }, { status: 404 });
+    }
+    const { imageUrl: _ignoredImageUrl, ...recipeData } = validationResult.data;
+    const recipeToSave = { ...recipeData, id, imageUrl: existing.imageUrl } as Recipe;
+
     // `xx`: only update an existing recipe, never create one via PUT
     const setResult = await redis.set(getRecipeKey(id), recipeToSave, { xx: true });
     if (setResult === null) {

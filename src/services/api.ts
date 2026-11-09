@@ -136,6 +136,20 @@ export const recipeApi = {
   },
 
   /**
+   * Generate a new photo for a recipe (replaces the current one). Returns the new image URL.
+   */
+  async regenerateImage(id: string, getToken: (() => Promise<string | null>) | null): Promise<string> {
+    const token = getToken ? await getToken() : null;
+    const response = await fetch(`/api/recipe/${encodeURIComponent(id)}/image`, {
+      ...NO_CACHE_OPTIONS,
+      method: 'POST',
+      headers: getAuthHeaders(token),
+    });
+    const { imageUrl } = await handleApiResponse<{ imageUrl: string }>(response);
+    return imageUrl;
+  },
+
+  /**
    * Delete recipe
    */
   async delete(id: string, getToken: (() => Promise<string | null>) | null): Promise<void> {

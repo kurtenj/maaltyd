@@ -13,7 +13,7 @@ import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
 import { recordRecentRecipe } from "../utils/recentRecipes";
-import { Check, ChevronLeft, Link } from "lucide-react";
+import { Check, ChevronLeft, Link, Sparkles } from "lucide-react";
 import { Show, useAuth } from '@clerk/nextjs';
 
 function deepCopy<T>(value: T): T {
@@ -24,9 +24,10 @@ function deepCopy<T>(value: T): T {
 
 interface RecipeReadViewProps {
   recipe: Recipe;
+  isGeneratingImage?: boolean;
 }
 
-const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe }) => {
+const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe, isGeneratingImage = false }) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [shareState, setShareState] = useState<"idle" | "shared" | "copied" | "error">("idle");
   const [multiplier, setMultiplier] = useState<1 | 2 | 3>(1);
@@ -69,6 +70,11 @@ const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe }) => {
               setImageLoadError(true);
             }}
           />
+        ) : isGeneratingImage ? (
+          <div className="w-full h-44 bg-stone-200 flex flex-col items-center justify-center gap-2 text-stone-500 animate-pulse">
+            <Sparkles size={24} />
+            <span className="text-sm">Generating photo…</span>
+          </div>
         ) : (
           <RecipeImagePlaceholder />
         )}
@@ -159,9 +165,14 @@ const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe }) => {
 interface RecipeDetailPageProps {
   initialRecipe: Recipe;
   relatedRecipes: Recipe[];
+  /** True right after creation, while the photo is generated in the background */
+  awaitingImage?: boolean;
 }
 
-const RecipeDetailPage: React.FC<RecipeDetailPageProps> = ({ initialRecipe, relatedRecipes }) => {
+const IMAGE_POLL_INTERVAL_MS = 3000;
+const IMAGE_POLL_MAX_ATTEMPTS = 20; // ~1 minute
+
+const RecipeDetailPage: React.FC<RecipeDetailPageProps> = ({ initialRecipe, relatedRecipes, awaitingImage = false }) => {
   const recipeId = initialRecipe.id;
 
   const router = useRouter();
@@ -175,9 +186,51 @@ const RecipeDetailPage: React.FC<RecipeDetailPageProps> = ({ initialRecipe, rela
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  const [isAwaitingImage, setIsAwaitingImage] = useState(awaitingImage);
+
   useEffect(() => {
     recordRecentRecipe(recipeId);
   }, [recipeId]);
+
+  // Poll for the background-generated photo of a just-created recipe
+  useEffect(() => {
+    if (!isAwaitingImage) return;
+    let attempts = 0;
+    let cancelled = false;
+
+    const timer = setInterval(async () => {
+      attempts += 1;
+      const [latest] = await tryCatchAsync(
+        () => recipeApi.getById(recipeId),
+        "RecipeDetailPage",
+        "Failed to check for generated photo"
+      );
+      if (cancelled) return;
+
+      if (latest?.imageUrl) {
+        const imageUrl = latest.imageUrl;
+        setRecipe((prev) => ({ ...prev, imageUrl }));
+        setEditableRecipe((prev) => ({ ...prev, imageUrl }));
+      }
+      if (latest?.imageUrl || attempts >= IMAGE_POLL_MAX_ATTEMPTS) {
+        clearInterval(timer);
+        setIsAwaitingImage(false);
+        router.replace(ROUTES.RECIPE_DETAIL(recipeId), { scroll: false });
+      }
+    }, IMAGE_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [isAwaitingImage, recipeId, router]);
+
+  const handleRegenerateImage = async (): Promise<string> => {
+    const imageUrl = await recipeApi.regenerateImage(recipeId, getToken);
+    // Saved server-side already; keep the read view in sync (the form updates its own copy)
+    setRecipe((prev) => ({ ...prev, imageUrl }));
+    return imageUrl;
+  };
 
   const handleEdit = () => {
     setEditableRecipe(deepCopy(recipe));
@@ -278,9 +331,10 @@ const RecipeDetailPage: React.FC<RecipeDetailPageProps> = ({ initialRecipe, rela
                 error={editError}
                 hideFormButtons
                 formId="recipe-edit-form"
+                onRegenerateImage={handleRegenerateImage}
               />
             ) : (
-              <RecipeReadView recipe={recipe} />
+              <RecipeReadView recipe={recipe} isGeneratingImage={isAwaitingImage} />
             )}
         </div>
 

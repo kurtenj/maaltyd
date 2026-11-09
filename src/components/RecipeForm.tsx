@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Recipe, Ingredient } from "../types/recipe";
 import Button from "./Button";
 import Input from "./Input";
-import { Trash2 } from "lucide-react";
+import { Trash2, Sparkles } from "lucide-react";
 import CookingPotIcon from "./CookingPotIcon";
+import RecipeImagePlaceholder from "./RecipeImagePlaceholder";
 import { STANDARD_UNITS, NO_UNIT } from "../utils/constants";
 
 interface RecipeFormProps {
@@ -19,6 +20,8 @@ interface RecipeFormProps {
   formId?: string;
   /** Callback to import a recipe from a URL. When provided, the URL import field is shown. */
   onImportUrl?: (url: string) => Promise<Omit<Recipe, "id">>;
+  /** Generates and saves a new photo, resolving to its URL. When provided, a regenerate button is shown. */
+  onRegenerateImage?: () => Promise<string>;
 }
 
 const RecipeForm: React.FC<RecipeFormProps> = ({
@@ -31,12 +34,15 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
   hideFormButtons = false,
   formId,
   onImportUrl,
+  onRegenerateImage,
 }) => {
   const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
   const [importUrl, setImportUrl] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [hasImported, setHasImported] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // Update form when initialRecipe changes
   useEffect(() => {
@@ -59,6 +65,20 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
       );
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleRegenerateImage = async () => {
+    if (!onRegenerateImage) return;
+    setIsGeneratingImage(true);
+    setImageError(null);
+    try {
+      const imageUrl = await onRegenerateImage();
+      setRecipe((prev) => ({ ...prev, imageUrl }));
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : "Photo generation failed. Try again.");
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -190,26 +210,45 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
         />
       </div>
 
-      {/* Image URL Field */}
-      <div>
-        <label
-          htmlFor="imageUrl"
-          className="block uppercase text-xs font-bold text-stone-400 mb-1"
-        >
-          Image URL (Optional)
-        </label>
-        <Input
-          type="url"
-          id="imageUrl"
-          value={recipe.imageUrl || ""} // Ensure value is not undefined
-          onChange={(e) =>
-            setRecipe({ ...recipe, imageUrl: e.target.value || undefined })
-          }
-          className="w-full"
-          placeholder="https://example.com/image.jpg"
-          disabled={isSaving || isDeleting}
-        />
-      </div>
+      {/* Photo — always AI-generated; edit mode can regenerate it */}
+      {onRegenerateImage ? (
+        <div>
+          <span className="block uppercase text-xs font-bold text-stone-400 mb-1">Photo</span>
+          <div className="flex items-center gap-4">
+            <div className="w-36 h-24 flex-shrink-0 rounded-md overflow-hidden bg-stone-100">
+              {recipe.imageUrl ? (
+                <img
+                  src={recipe.imageUrl}
+                  alt={`Photo of ${recipe.title}`}
+                  className={`w-full h-full object-cover ${isGeneratingImage ? "opacity-50 animate-pulse" : ""}`}
+                />
+              ) : (
+                <RecipeImagePlaceholder className="w-full h-full" />
+              )}
+            </div>
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                type="button"
+                variant="secondary"
+                className="px-3 py-1.5 text-sm"
+                onClick={handleRegenerateImage}
+                disabled={isSaving || isDeleting || isGeneratingImage}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <Sparkles size={14} />
+                  {isGeneratingImage ? "Generating photo…" : "Generate new photo"}
+                </span>
+              </Button>
+              {imageError && <span className="text-sm text-red-600">{imageError}</span>}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="flex items-center gap-1.5 text-sm text-stone-500">
+          <Sparkles size={14} />
+          A photo will be generated automatically when you save.
+        </p>
+      )}
 
       {/* Main Ingredient Field */}
       <div>

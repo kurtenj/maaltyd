@@ -1,19 +1,22 @@
 import React from "react";
 import { describe, test, expect, vi, beforeAll, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import RecipeDetailPage from "./RecipeDetailPage";
 import { Recipe } from "../types/recipe";
+import { recipeApi } from "../services/api";
 
 // Mocks
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock("../services/api", () => ({
   recipeApi: {
+    getById: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    regenerateImage: vi.fn(),
   },
 }));
 
@@ -156,6 +159,48 @@ describe("RecipeDetailPage - Related Recipes", () => {
     await renderComponentAndWaitForRecipe();
 
     expect(screen.queryByText("Related Recipes")).not.toBeInTheDocument();
+  });
+});
+
+describe("RecipeDetailPage - Generated photo", () => {
+  test("shows a generating state, then swaps in the photo once it's ready", async () => {
+    vi.useFakeTimers();
+    try {
+      const withoutImage = { ...sampleRecipe, imageUrl: undefined };
+      vi.mocked(recipeApi.getById)
+        .mockResolvedValueOnce(withoutImage)
+        .mockResolvedValueOnce({ ...withoutImage, imageUrl: "https://img.example.com/generated.webp" });
+
+      render(<RecipeDetailPage initialRecipe={withoutImage} relatedRecipes={[]} awaitingImage />);
+      expect(screen.getByText("Generating photo…")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000); // first poll: not ready yet
+      });
+      expect(screen.getByText("Generating photo…")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000); // second poll: ready
+      });
+      expect(screen.queryByText("Generating photo…")).not.toBeInTheDocument();
+      expect(screen.getByAltText(sampleRecipe.title)).toHaveAttribute("src", "https://img.example.com/generated.webp");
+      expect(recipeApi.getById).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("does not poll when the recipe isn't awaiting a photo", async () => {
+    vi.useFakeTimers();
+    try {
+      render(<RecipeDetailPage initialRecipe={sampleRecipe} relatedRecipes={[]} />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000);
+      });
+      expect(recipeApi.getById).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

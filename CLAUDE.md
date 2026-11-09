@@ -71,9 +71,22 @@ Server data access goes through `src/utils/recipeFetcher.ts`: `fetchAllRecipes()
 
 ### AI / URL Import
 
-`src/app/api/import-recipe/route.ts` uses the Anthropic SDK (client created lazily on first request) with Claude tool use (`tool_choice: { type: 'tool', name: 'extract_recipe' }`) to force structured JSON output. The default model is `ANTHROPIC_MODEL` from `src/utils/constants.ts` (`claude-haiku-4-5-20251001`), overridable via the `ANTHROPIC_MODEL` env var. The system prompt uses `cache_control: ephemeral` for prompt caching. Only `http:` and `https:` URLs are accepted (SSRF protection).
+`src/app/api/import-recipe/route.ts` uses the Anthropic SDK with **structured outputs** (`client.messages.parse` + `zodOutputFormat`) — the response must match `ClaudeRecipeOutputSchema`, whose `unit` is an enum of `STANDARD_UNITS`; the stricter `ExtractedRecipeSchema` then validates the result. Default model is `ANTHROPIC_MODEL` in `src/utils/constants.ts` (`claude-haiku-5-5`, overridable via the `ANTHROPIC_MODEL` env var), at `effort: 'low'`. Haiku 5.5 thinks by default and thinking counts toward `max_tokens`, hence the 16000 cap. A `stop_reason: "refusal"` is mapped to a 422. The system prompt uses `cache_control: ephemeral`; usage (incl. cache reads) is logged per import. Never send `temperature`/`top_p`/`top_k` or an assistant prefill — both return 400 on this model.
 
-The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scans all `<script type="application/ld+json">` tags for a `@type: "Recipe"` node (handles both direct objects and `@graph` wrappers); (2) `@mozilla/readability` text extraction; (3) raw HTML tag-stripping. Claude always runs regardless of source — its role is adaptation (flatten ingredient groups, simplify techniques, consolidate steps) not just extraction. `main` and `imageUrl` are intentionally omitted from Claude's output and left for the user to fill in.
+URL fetching goes through `safeFetchText` (`src/utils/safeFetch.ts`): http(s) on default ports only, DNS-resolves and rejects private/loopback/link-local addresses, re-validates every redirect hop, caps bodies at 3 MB. Imports are rate-limited to 10/hour per user (`@upstash/ratelimit`, prefix `ratelimit:import`).
+
+The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scans `<script type="application/ld+json">` tags for a `@type: "Recipe"` node (direct or inside `@graph`); (2) `@mozilla/readability` text extraction; (3) raw HTML tag-stripping. Claude always runs regardless of source — its role is adaptation (flatten ingredient groups, simplify techniques, consolidate steps), not just extraction. `main` and `imageUrl` are intentionally omitted from Claude's output.
+
+### AI recipe photos
+
+`src/utils/recipeImage.ts` generates recipe photos with OpenAI (`gpt-image-2.6-flare` by default, overridable via `OPENAI_IMAGE_MODEL`; 1536×1024 WebP, ~$0.02 and ~8s each), uploads them to Vercel Blob under `recipe-images/`, and stores the URL on the recipe. **Photos are only ever AI-generated** — there is no image URL field, `POST /api/recipes` ignores any client `imageUrl`, and `PUT /api/recipe/:id` keeps the stored one.
+
+**Style consistency:** `buildImagePrompt()` = dish description + the shared `IMAGE_STYLE` constant, which pins camera angle, surface (light oak), vessel (matte off-white plate, or bowl for liquid dishes), light, grade, and props so only the food varies. If you change `IMAGE_STYLE`, run `npm run backfill:images -- --all` so existing photos match.
+
+- **Automatic:** `POST /api/recipes` always schedules generation with `after()`, so saving isn't slowed down. `AddRecipePage` then navigates to `ROUTES.RECIPE_DETAIL_AWAITING_IMAGE(id)` (`?photo=generating`), and `RecipeDetailPage` polls `GET /api/recipe/:id` every 3s (up to ~1 min) and shows "Generating photo…" meanwhile.
+- **Regenerate:** `POST /api/recipe/:id/image` (auth, 10/hour per user, prefix `ratelimit:image`), exposed as "Generate new photo" in `RecipeForm` via the `onRegenerateImage` prop (edit mode only, shown with a photo preview). It saves immediately, independent of the form's Save.
+- **Backfill:** `npm run backfill:images` (`scripts/backfill-recipe-images.ts`, via `tsx` with `.env.local`) regenerates photos for recipes without an AI photo; `--all` does every recipe, `--dry-run` lists only, `--limit N` caps it. It writes previous image URLs to `scripts/backfill-output/` (gitignored) before changing anything. Note `.env.local` points at the production Redis.
+- `attachGeneratedImage()` re-reads the recipe after generating so concurrent edits aren't lost, never replaces a user-supplied image in automatic mode, cleans up the uploaded blob if the recipe disappeared, and deletes the previous image on regenerate **only** if it's one of ours (Blob `recipe-images/`).
 
 ### Button component
 
@@ -105,3 +118,6 @@ Required in `.env.local` for local development:
 - `CLERK_SECRET_KEY` — Clerk (backend JWT verification)
 - `ANTHROPIC_API_KEY` — Anthropic API (URL import feature)
 - `ANTHROPIC_MODEL` — (optional) override the default Claude model
+- `OPENAI_API_KEY` — OpenAI (recipe photo generation)
+- `OPENAI_IMAGE_MODEL` — (optional) override the image model
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob (generated photo storage)

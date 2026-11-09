@@ -43,7 +43,7 @@ export const fetchAllRecipes = cache(async (logContext = 'recipeFetcher'): Promi
  * Fetch and validate a single recipe. Returns null if missing.
  * Throws if the stored data fails validation.
  */
-export const fetchRecipeById = cache(async (id: string): Promise<Recipe | null> => {
+export async function getRecipeById(id: string): Promise<Recipe | null> {
   const data = await redis.get<Recipe>(getRecipeKey(id));
   if (data === null) return null;
 
@@ -53,4 +53,7 @@ export const fetchRecipeById = cache(async (id: string): Promise<Recipe | null> 
     throw new Error('Invalid recipe data stored.');
   }
   return result.data;
-});
+}
+
+/** Per-render cached version of getRecipeById (dedupes generateMetadata + page). */
+export const fetchRecipeById = cache(getRecipeById);

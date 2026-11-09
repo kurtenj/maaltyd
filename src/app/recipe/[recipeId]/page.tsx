@@ -6,7 +6,10 @@ import { getRelatedRecipes } from '../../../utils/relatedRecipes';
 
 export const dynamic = 'force-dynamic';
 
-type PageProps = { params: Promise<{ recipeId: string }> };
+type PageProps = {
+  params: Promise<{ recipeId: string }>;
+  searchParams: Promise<{ photo?: string }>;
+};
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { recipeId } = await params;
@@ -29,8 +32,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const { recipeId } = await params;
+  const { photo } = await searchParams;
   const recipe = await fetchRecipeById(recipeId);
   if (!recipe) notFound();
 
@@ -38,5 +42,12 @@ export default async function Page({ params }: PageProps) {
   const relatedRecipes = getRelatedRecipes(allRecipes, recipe);
 
   // key resets edit state when navigating between recipes
-  return <RecipeDetailPage key={recipe.id} initialRecipe={recipe} relatedRecipes={relatedRecipes} />;
+  return (
+    <RecipeDetailPage
+      key={recipe.id}
+      initialRecipe={recipe}
+      relatedRecipes={relatedRecipes}
+      awaitingImage={photo === 'generating' && !recipe.imageUrl}
+    />
+  );
 }

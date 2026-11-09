@@ -25,4 +25,4 @@ export const STANDARD_UNITS = [
 export const NO_UNIT = '' as const;
 
 /** Default Claude model for AI features. Override via ANTHROPIC_MODEL env var. */
-export const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
+export const ANTHROPIC_MODEL = 'claude-haiku-5-5';
