@@ -1,8 +1,11 @@
+"use client";
+
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Recipe } from "../types/recipe";
 import RecipeImagePlaceholder from "./RecipeImagePlaceholder";
 import { logger } from "../utils/logger";
+import { ROUTES } from "../utils/navigation";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -14,7 +17,7 @@ const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ recipe }) => {
   return (
     <Link
       key={recipe.id}
-      to={`/recipe/${recipe.id}`}
+      href={ROUTES.RECIPE_DETAIL(recipe.id)}
       className="block hover:shadow-md transition-all duration-200 ease-in-out rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-800 focus:ring-offset-2 overflow-hidden relative border border-stone-200 hover:border-stone-300 bg-white/75"
     >
       <div className="flex h-full">

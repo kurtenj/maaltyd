@@ -1,63 +1,56 @@
-import { z } from 'zod';
-import { redis, RECIPE_PREFIX } from './redisClient';
+import { cache } from 'react';
+import { redis, RECIPE_PREFIX, getRecipeKey } from './redisClient';
 import { RecipeSchema } from './apiSchemas';
 import { serverLogger } from './serverLogger';
 import type { Recipe } from '../types/recipe';
 
-export interface FetchRecipesOptions {
-  schema?: z.ZodSchema<Recipe>;
-  logContext?: string;
-}
-
-export async function fetchAllRecipes(
-  options: FetchRecipesOptions = {}
-): Promise<Recipe[]> {
-  const {
-    schema = RecipeSchema,
-    logContext = 'recipeFetcher',
-  } = options;
-
-  serverLogger.log(logContext, 'fetching recipe keys from Redis using SCAN...');
-
+/**
+ * Fetch and validate every recipe in Redis (SCAN for `recipe:*`, then MGET).
+ * Wrapped in React `cache()` so multiple calls within one server render share a result.
+ */
+export const fetchAllRecipes = cache(async (logContext = 'recipeFetcher'): Promise<Recipe[]> => {
   const recipeKeys: string[] = [];
-  let cursor: string | number = 0;
+  let cursor = '0';
   do {
-    const [nextCursorStr, keys] = await redis.scan(cursor as number, {
-      match: `${RECIPE_PREFIX}*`
+    const [nextCursor, keys]: [string, string[]] = await redis.scan(cursor, {
+      match: `${RECIPE_PREFIX}*`,
     });
     recipeKeys.push(...keys);
-    cursor = nextCursorStr;
+    cursor = nextCursor;
   } while (cursor !== '0');
-
-  serverLogger.log(logContext, `found ${recipeKeys.length} recipe keys via SCAN`);
 
   if (recipeKeys.length === 0) {
     return [];
   }
 
-  serverLogger.log(logContext, `fetching ${recipeKeys.length} recipes using mget...`);
-  const recipesData = await redis.mget<Recipe[]>(...recipeKeys);
-  serverLogger.log(logContext, `received ${recipesData ? recipesData.length : 'null'} results from mget`);
+  const recipesData = await redis.mget<(Recipe | null)[]>(...recipeKeys);
 
-  const validRecipes = recipesData
-    .map((recipe, index) => {
-      const key = recipeKeys[index] || 'unknown_key';
-
-      if (!recipe) {
-        serverLogger.warn(logContext, `null recipe data for key index ${index}, skipping`);
-        return null;
-      }
-
-      const result = schema.safeParse(recipe);
-      if (!result.success) {
-        serverLogger.warn(logContext, `invalid recipe data for key ${key}, skipping:`, result.error.flatten());
-        return null;
-      }
-
-      return result.data;
-    })
-    .filter((recipe): recipe is Recipe => recipe !== null);
+  const validRecipes = recipesData.flatMap((recipe, index) => {
+    if (!recipe) return [];
+    const result = RecipeSchema.safeParse(recipe);
+    if (!result.success) {
+      serverLogger.warn(logContext, `invalid recipe data for key ${recipeKeys[index]}, skipping:`, result.error.flatten());
+      return [];
+    }
+    return [result.data];
+  });
 
   serverLogger.log(logContext, `returning ${validRecipes.length} valid recipes`);
   return validRecipes;
-}
+});
+
+/**
+ * Fetch and validate a single recipe. Returns null if missing.
+ * Throws if the stored data fails validation.
+ */
+export const fetchRecipeById = cache(async (id: string): Promise<Recipe | null> => {
+  const data = await redis.get<Recipe>(getRecipeKey(id));
+  if (data === null) return null;
+
+  const result = RecipeSchema.safeParse(data);
+  if (!result.success) {
+    serverLogger.warn('recipeFetcher', `invalid data in Redis for recipe ${id}:`, result.error.flatten());
+    throw new Error('Invalid recipe data stored.');
+  }
+  return result.data;
+});

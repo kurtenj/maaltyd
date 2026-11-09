@@ -1,21 +1,20 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
-
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { z } from 'zod';
-import { verifyAuth } from '../src/utils/auth';
-import { serverLogger } from '../src/utils/serverLogger';
-import { STANDARD_UNITS, ANTHROPIC_MODEL } from '../src/utils/constants';
-import { IngredientSchema } from '../src/utils/apiSchemas';
+import { verifyAuth } from '../../../utils/auth';
+import { serverLogger } from '../../../utils/serverLogger';
+import { STANDARD_UNITS, ANTHROPIC_MODEL } from '../../../utils/constants';
+import { IngredientSchema } from '../../../utils/apiSchemas';
 
 const MOD = 'api/import-recipe';
 const MODEL = process.env.ANTHROPIC_MODEL ?? ANTHROPIC_MODEL;
 const THIN_CONTENT_THRESHOLD = 500;
 
-const client = new Anthropic();
+// Created lazily so a missing API key fails the request, not the build
+let client: Anthropic | null = null;
+const getClient = () => (client ??= new Anthropic());
 
 // Validates only the fields Claude extracts — main and imageUrl are left for the user to fill in
 const ExtractedRecipeSchema = z.object({
@@ -214,7 +213,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Call Claude
   let toolInput: Record<string, unknown>;
   try {
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: MODEL,
       max_tokens: 2048,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],

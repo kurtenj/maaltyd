@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRecipes } from '../hooks/useRecipes';
 import RecipeCard from '../components/RecipeCard';
 import RecipeCardSkeleton from '../components/RecipeCardSkeleton';
@@ -8,8 +10,13 @@ import { getRecentRecipeIds } from '../utils/recentRecipes';
 
 import Button from '../components/Button';
 import Input from '../components/Input';
+import type { Recipe } from '../types/recipe';
 
-const HomePage: React.FC = () => {
+interface HomePageProps {
+  initialRecipes?: Recipe[];
+}
+
+const HomePage: React.FC<HomePageProps> = ({ initialRecipes }) => {
   const {
     allRecipes,
     isLoading,
@@ -20,9 +27,13 @@ const HomePage: React.FC = () => {
     selectedMainIngredient,
     availableMainIngredients,
     handleMainIngredientChange,
-  } = useRecipes();
+  } = useRecipes(initialRecipes);
 
-  const recentIds = useMemo(() => getRecentRecipeIds(), []);
+  // localStorage is browser-only, so read it after hydration
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+  useEffect(() => {
+    setRecentIds(getRecentRecipeIds());
+  }, []);
 
   const recentRecipes = useMemo(() => {
     if (!allRecipes.length) return [];
@@ -119,7 +130,7 @@ const HomePage: React.FC = () => {
               }
             </p>
             {!searchTerm && !selectedMainIngredient && (
-              <Link to={ROUTES.ADD_RECIPE}>
+              <Link href={ROUTES.ADD_RECIPE}>
                 <Button variant="primary">Add Your First Recipe</Button>
               </Link>
             )}

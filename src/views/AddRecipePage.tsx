@@ -1,5 +1,8 @@
+'use client';
+
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { recipeApi } from '../services/api';
 import { logger } from '../utils/logger';
@@ -7,7 +10,7 @@ import { ROUTES } from '../utils/navigation';
 import type { Recipe } from '../types/recipe';
 import RecipeForm from '../components/RecipeForm';
 import { NO_UNIT } from '../utils/constants';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/nextjs';
 
 /**
  * Add Recipe Page - manual recipe entry
@@ -25,7 +28,7 @@ const AddRecipePage: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<'error' | 'success'>('success');
 
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isSignedIn, isLoaded, getToken } = useAuth();
 
   /**
@@ -121,7 +124,7 @@ const AddRecipePage: React.FC = () => {
 
     if (newRecipe) {
       logger.log('AddRecipePage', 'Recipe created successfully:', newRecipe);
-      navigate(ROUTES.RECIPE_DETAIL(newRecipe.id));
+      router.push(ROUTES.RECIPE_DETAIL(newRecipe.id));
     }
 
     setIsCreating(false);
@@ -141,7 +144,7 @@ const AddRecipePage: React.FC = () => {
    */
   const handleCancelForm = () => {
     setStatusMessage(null);
-    navigate(ROUTES.HOME);
+    router.push(ROUTES.HOME);
   };
 
   // Show loading state while Clerk is initializing
@@ -173,7 +176,7 @@ const AddRecipePage: React.FC = () => {
     <div className="max-w-2xl mx-auto p-1">
       {/* Back Link */}
       <Link
-        to={ROUTES.HOME}
+        href={ROUTES.HOME}
         className="inline-flex items-center text-stone-500 hover:text-stone-800 mb-4 group text-sm"
       >
         <ChevronLeft

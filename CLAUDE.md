@@ -5,12 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev          # Start Vite dev server (frontend only)
-npm run dev:vercel   # Start with Vercel serverless functions (full stack)
-npm run build        # Build for production
-npm run lint         # ESLint with eslint.config.mjs
-npm run test         # Run Vitest in watch mode
-npm run test:coverage # Run tests with coverage report
+npm run dev           # Next.js dev server (pages + API routes)
+npm run build         # Production build (also type-checks)
+npm run start         # Serve the production build
+npm run lint          # ESLint with eslint.config.mjs
+npm run typecheck     # tsc --noEmit
+npm run test          # Vitest in watch mode
+npm run test:coverage # Tests with coverage report
 ```
 
 To run a single test file:
@@ -18,42 +19,49 @@ To run a single test file:
 npx vitest run src/components/Header.test.tsx
 ```
 
-> Use `npm run dev:vercel` when working on API routes — `npm run dev` won't serve the serverless functions.
-
 ## Architecture
 
-**Maaltyd** is a recipe management app: React/Vite SPA frontend + Vercel Serverless Functions backend, deployed on Vercel.
+**Maaltyd** is a recipe management app built on **Next.js 16 (App Router)**, deployed on Vercel. Everything lives under `src/`.
 
-### Frontend (`src/`)
+### Routes (`src/app/`)
 
-- **Entry:** `main.tsx` — sets up `ClerkProvider`, `RouterProvider` with three routes: `/`, `/recipe/:recipeId`, `/add-recipe`
-- **Layout:** `App.tsx` — `Header` + `<Outlet />` + `Footer` shell
-- **Pages:** `HomePage`, `RecipeDetailPage`, `AddRecipePage`
-  - `RecipeDetailPage` handles both read and edit mode inline (toggled via state) — there is no separate edit route
-  - `RecipeForm` component is shared between `AddRecipePage` (create) and `RecipeDetailPage` (edit)
-- **State:** `src/hooks/useRecipes.ts` — single hook managing all recipe list state (fetch, filter by `main` ingredient, search by title). Exposes `fetchRecipes` for manual refresh.
-- **API client:** `src/services/api.ts` — `recipeApi` object wrapping all fetch calls to `/api/*`. Mutation methods (`create`, `update`, `delete`, `importFromUrl`) accept a `getToken` function from Clerk's `useAuth()` and send `Authorization: Bearer <token>`.
-- **Navigation:** Use `ROUTES` from `src/utils/navigation.ts` for all route paths in code (e.g., `ROUTES.HOME`, `ROUTES.RECIPE_DETAIL(id)`).
+- `layout.tsx` — root layout: `ClerkProvider`, `next/font` Bricolage Grotesque (`--font-bricolage`), `Header` + `PageTransition` + `Footer`, site metadata.
+- `page.tsx` (`/`) — server component; loads recipes with `fetchAllRecipes()` and passes them to the `HomePage` view.
+- `recipe/[recipeId]/page.tsx` — server component; loads the recipe + related recipes, sets `generateMetadata` (title / Open Graph image) and calls `notFound()` for missing IDs.
+- `add-recipe/page.tsx` — renders the `AddRecipePage` view.
+- `loading.tsx`, `error.tsx`, `not-found.tsx` — skeletons, error boundary, 404.
+- Recipe pages use `export const dynamic = 'force-dynamic'` because Redis reads don't go through `fetch` and would otherwise be frozen at build time.
 
-### Backend (`api/`)
+### Views (`src/views/`)
 
-Vercel Serverless Functions using Next.js App Router handler convention (`export async function GET/POST/PUT/DELETE`):
+Client components (`'use client'`) holding the interactive page UI: `HomePage`, `RecipeDetailPage`, `AddRecipePage`. The folder is deliberately **not** called `pages/` — Next would treat `src/pages` as the Pages Router.
 
-- `api/recipes.ts` — `GET` (list all) and `POST` (create) at `/api/recipes`
-- `api/recipe/[id].ts` — `GET`, `PUT`, `DELETE` at `/api/recipe/:id`
-- `api/import-recipe.ts` — `POST` at `/api/import-recipe`: accepts `{ url }`, fetches the page, then tries to extract `schema.org/Recipe` from `<script type="application/ld+json">` tags first; falls back to `@mozilla/readability` + `jsdom` text extraction if no JSON-LD is found. Passes whichever content to Claude (tool use, forced `extract_recipe` call) for simplification and structuring, validates against `RecipeCreateSchema`, and returns the recipe data for user review. Auth required. The server log line includes `contentSource` (`json-ld` | `readability` | `raw`) for debugging import failures.
+- `RecipeDetailPage` takes `initialRecipe` and `relatedRecipes` props from the server page and handles read and edit mode inline (no separate edit route). The server page renders it with `key={recipe.id}` so edit state resets between recipes.
+- `RecipeForm` is shared between create (`AddRecipePage`) and edit (`RecipeDetailPage`).
+- **State:** `src/hooks/useRecipes.ts` manages the list (filter by `main`, debounced title search). Pass `initialRecipes` to start populated and skip the client fetch.
+- **API client:** `src/services/api.ts` — `recipeApi` wraps `fetch` calls to `/api/*` for mutations and import. Mutation methods take `getToken` from Clerk's `useAuth()` and send `Authorization: Bearer <token>`.
+- **Navigation:** use `next/link` / `useRouter` from `next/navigation`, with paths from `ROUTES` in `src/utils/navigation.ts`.
+- Anything reading `localStorage` (e.g. `recentRecipes`) must run in an effect, not during render, to avoid hydration mismatches.
 
-Both GET handlers use the shared `fetchAllRecipes()` utility in `src/utils/recipeFetcher.ts`, which does a Redis `SCAN` for `recipe:*` keys, then `mget`, then validates each result against `RecipeSchema`.
+### API routes (`src/app/api/`)
+
+Next.js route handlers (`export async function GET/POST/PUT/DELETE`; dynamic `params` is a Promise):
+
+- `api/recipes/route.ts` — `GET` (list) and `POST` (create).
+- `api/recipe/[id]/route.ts` — `GET`, `PUT` (update-only, `xx`; 404 if missing), `DELETE`.
+- `api/import-recipe/route.ts` — `POST`: accepts `{ url }`, fetches the page, tries `schema.org/Recipe` JSON-LD first, falls back to `@mozilla/readability` + `jsdom`, then raw tag stripping; sends the content to Claude for structuring, validates, and returns the recipe for user review. Auth required. Logs `contentSource` (`json-ld` | `readability` | `raw`). `jsdom` is listed in `serverExternalPackages` in `next.config.ts`.
+
+Server data access goes through `src/utils/recipeFetcher.ts`: `fetchAllRecipes()` (Redis `SCAN` for `recipe:*` + `MGET`, validated against `RecipeSchema`) and `fetchRecipeById()`. Both are wrapped in React `cache()` so `generateMetadata` and the page share one read. `getRelatedRecipes()` in `src/utils/relatedRecipes.ts` is the pure filtering logic.
 
 ### Data & Auth
 
 - **Storage:** Upstash Redis (`@upstash/redis`). Keys use prefix `recipe:` followed by UUID. See `src/utils/redisClient.ts`.
-- **Auth:** Clerk. Frontend calls `getToken()` from `useAuth()` and sends it as `Authorization: Bearer <token>`. Backend verifies the JWT using `verifyToken(token, { secretKey })` from `@clerk/backend` in `src/utils/auth.ts`. Mutations (POST/PUT/DELETE) require auth; GET is public.
+- **Auth:** Clerk via `@clerk/nextjs` (Core 3). `src/proxy.ts` runs `clerkMiddleware()` (Next 16 renamed `middleware.ts` to `proxy.ts`). Use `<Show when="signed-in">` / `<Show when="signed-out">` — `SignedIn`/`SignedOut` were removed in Core 3 and throw. API routes verify the Bearer token with `verifyToken` from `@clerk/backend` in `src/utils/auth.ts`. Mutations (POST/PUT/DELETE) require auth; GET is public.
 - **Validation:** Zod schemas in `src/utils/apiSchemas.ts` (`RecipeSchema`, `RecipeCreateSchema`, `RecipeUpdateSchema`) are shared between frontend types and API handlers. `unit` on ingredients is validated against the `STANDARD_UNITS` enum from `src/utils/constants.ts`.
 
 ### Key Types
 
-`src/types/recipe.ts` defines the central `Recipe` interface: `{ id, title, imageUrl?, main, other: Ingredient[], instructions: string[] }`. `main` is the primary ingredient (used for filtering); `other` is an array of `{ name, quantity, unit? }`.
+`src/types/recipe.ts` defines the central `Recipe` interface: `{ id, title, imageUrl?: string | null, main, other: Ingredient[], instructions: string[] }`. `main` is the primary ingredient (used for filtering); `other` is an array of `{ name, quantity, unit? }`.
 
 ### RecipeForm props
 
@@ -63,7 +71,7 @@ Both GET handlers use the shared `fetchAllRecipes()` utility in `src/utils/recip
 
 ### AI / URL Import
 
-`api/import-recipe.ts` uses the Anthropic SDK with Claude tool use (`tool_choice: { type: 'tool', name: 'extract_recipe' }`) to force structured JSON output. The default model is `ANTHROPIC_MODEL` from `src/utils/constants.ts` (`claude-haiku-4-5-20251001`), overridable via the `ANTHROPIC_MODEL` env var. The system prompt uses `cache_control: ephemeral` for prompt caching. Only `http:` and `https:` URLs are accepted (SSRF protection).
+`src/app/api/import-recipe/route.ts` uses the Anthropic SDK (client created lazily on first request) with Claude tool use (`tool_choice: { type: 'tool', name: 'extract_recipe' }`) to force structured JSON output. The default model is `ANTHROPIC_MODEL` from `src/utils/constants.ts` (`claude-haiku-4-5-20251001`), overridable via the `ANTHROPIC_MODEL` env var. The system prompt uses `cache_control: ephemeral` for prompt caching. Only `http:` and `https:` URLs are accepted (SSRF protection).
 
 The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scans all `<script type="application/ld+json">` tags for a `@type: "Recipe"` node (handles both direct objects and `@graph` wrappers); (2) `@mozilla/readability` text extraction; (3) raw HTML tag-stripping. Claude always runs regardless of source — its role is adaptation (flatten ingredient groups, simplify techniques, consolidate steps) not just extraction. `main` and `imageUrl` are intentionally omitted from Claude's output and left for the user to fill in.
 
@@ -77,23 +85,23 @@ The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scan
 
 ### Animations
 
-`motion` (formerly Framer Motion, imported as `motion/react`) is the animation library. `CookingPotIcon` (`src/components/CookingPotIcon.tsx`) is the pattern to follow for imperative animation: it uses `useAnimation()` controls driven by an `isAnimating` prop, with `motion.g` elements and named variant states (`normal` / `animate`). New animated icons should follow this same shape.
+`motion` (formerly Framer Motion, imported as `motion/react`) is the animation library. Page transitions live in `src/components/PageTransition.tsx` (`LazyMotion` + `m.div` keyed by pathname): an enter-only slide whose direction comes from `useNavigationDirection`. There is no exit animation, because the App Router swaps route content before an `AnimatePresence` exit could play. `CookingPotIcon` (`src/components/CookingPotIcon.tsx`) is the pattern to follow for imperative animation: it uses `useAnimation()` controls driven by an `isAnimating` prop, with `motion.g` elements and named variant states (`normal` / `animate`). New animated icons should follow this same shape.
 
 ### Utility Patterns
 
 - **Error handling:** `tryCatchAsync(fn, module, errorMessage?)` from `src/utils/errorHandling.ts` returns `[result, error]` tuples — used throughout pages and hooks instead of bare try/catch.
-- **Logging:** `logger` from `src/utils/logger.ts` — logs are suppressed in production by default; can be re-enabled at runtime via `localStorage.setItem('debug', 'true')`. Server-side uses `serverLogger` from `src/utils/serverLogger.ts`.
+- **Logging:** `logger` from `src/utils/logger.ts` — logs are suppressed when `NODE_ENV === 'production'`; can be re-enabled at runtime via `localStorage.setItem('debug', 'true')`. Server-side uses `serverLogger` from `src/utils/serverLogger.ts`.
 - **Recent recipes:** `src/utils/recentRecipes.ts` — tracks last 5 viewed recipe IDs in `localStorage`.
 
 ### Deployment
 
-`vercel.json` configures SPA fallback rewrites so that deep links (e.g. `/recipe/:id`) are served by `index.html` and handled by React Router client-side. The `/api/*` prefix is reserved for serverless functions.
+`vercel.json` pins `"framework": "nextjs"`. The app version shown in the footer comes from `package.json` via `NEXT_PUBLIC_APP_VERSION` (set in `next.config.ts`).
 
 ## Environment Variables
 
 Required in `.env.local` for local development:
 - `KV_REST_API_URL` / `KV_REST_API_TOKEN` — Upstash Redis
-- `VITE_CLERK_PUBLISHABLE_KEY` — Clerk (frontend)
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk (frontend; read automatically by `ClerkProvider`)
 - `CLERK_SECRET_KEY` — Clerk (backend JWT verification)
 - `ANTHROPIC_API_KEY` — Anthropic API (URL import feature)
 - `ANTHROPIC_MODEL` — (optional) override the default Claude model

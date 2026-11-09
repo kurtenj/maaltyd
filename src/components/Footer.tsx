@@ -1,7 +1,7 @@
 import React from 'react';
 import { Heart } from 'lucide-react';
 
-const APP_VERSION = `v${__APP_VERSION__}`;
+const APP_VERSION = `v${process.env.NEXT_PUBLIC_APP_VERSION}`;
 
 const Footer: React.FC = () => {
   return (

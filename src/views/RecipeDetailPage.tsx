@@ -1,19 +1,20 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
+import NextLink from "next/link";
+import { useRouter } from "next/navigation";
 import { Recipe } from "../types/recipe";
 import Button from "../components/Button";
 import RecipeForm from "../components/RecipeForm";
 import RecipeImagePlaceholder from "../components/RecipeImagePlaceholder";
-import RecipeDetailSkeleton from "../components/RecipeDetailSkeleton";
 import RecipeCard from "../components/RecipeCard";
-import RecipeCardSkeleton from "../components/RecipeCardSkeleton";
 import { recipeApi } from "../services/api";
 import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
 import { recordRecentRecipe } from "../utils/recentRecipes";
 import { Check, ChevronLeft, Link } from "lucide-react";
-import { SignedIn, useAuth } from '@clerk/clerk-react';
+import { Show, useAuth } from '@clerk/nextjs';
 
 function deepCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
@@ -155,28 +156,30 @@ const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe }) => {
 
 // --- Main page component ---
 
-const RecipeDetailPage: React.FC = () => {
-  const params = useParams<{ recipeId: string }>();
-  const recipeId = params.recipeId;
+interface RecipeDetailPageProps {
+  initialRecipe: Recipe;
+  relatedRecipes: Recipe[];
+}
 
-  const navigate = useNavigate();
+const RecipeDetailPage: React.FC<RecipeDetailPageProps> = ({ initialRecipe, relatedRecipes }) => {
+  const recipeId = initialRecipe.id;
+
+  const router = useRouter();
   const { isSignedIn, isLoaded, getToken } = useAuth();
 
-  const [recipe, setRecipe] = useState<Recipe | null>(null);
-  const [isFetchingDetails, setIsFetchingDetails] = useState<boolean>(true);
-  const [detailError, setDetailError] = useState<string | null>(null);
-
-  const [relatedRecipes, setRelatedRecipes] = useState<Recipe[]>([]);
-  const [isLoadingRelated, setIsLoadingRelated] = useState<boolean>(true);
+  const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editableRecipe, setEditableRecipe] = useState<Recipe | null>(null);
+  const [editableRecipe, setEditableRecipe] = useState<Recipe>(() => deepCopy(initialRecipe));
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  useEffect(() => {
+    recordRecentRecipe(recipeId);
+  }, [recipeId]);
+
   const handleEdit = () => {
-    if (!recipe) return;
     setEditableRecipe(deepCopy(recipe));
     setIsEditing(true);
     setEditError(null);
@@ -184,13 +187,11 @@ const RecipeDetailPage: React.FC = () => {
 
   const handleCancel = () => {
     setIsEditing(false);
-    if (recipe) setEditableRecipe(deepCopy(recipe));
+    setEditableRecipe(deepCopy(recipe));
     setEditError(null);
   };
 
   const handleSave = async (updatedRecipe: Recipe) => {
-    if (!recipeId) return;
-
     if (!isLoaded) {
       setEditError('Please wait for authentication to load.');
       return;
@@ -223,11 +224,6 @@ const RecipeDetailPage: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!recipe?.id) {
-      setEditError("Cannot delete recipe: Recipe data is missing.");
-      return;
-    }
-
     if (!isLoaded) {
       setEditError('Please wait for authentication to load.');
       return;
@@ -253,108 +249,26 @@ const RecipeDetailPage: React.FC = () => {
         setEditError(error.message);
         setIsDeleting(false);
       } else {
-        navigate(ROUTES.HOME);
+        router.push(ROUTES.HOME);
       }
     }
   };
-
-  useEffect(() => {
-    setRecipe(null);
-    setEditableRecipe(null);
-    setDetailError(null);
-    setIsFetchingDetails(true);
-    setRelatedRecipes([]);
-    setIsLoadingRelated(true);
-
-    const actualRecipeIdFromUrl = params.recipeId;
-
-    if (actualRecipeIdFromUrl) {
-      const fetchRecipe = async () => {
-        const [data, error] = await tryCatchAsync(
-          () => recipeApi.getById(actualRecipeIdFromUrl),
-          "RecipeDetailPage",
-          "Failed to load recipe details"
-        );
-
-        if (error) {
-          logger.error("RecipeDetailPage", `Error fetching recipe ${actualRecipeIdFromUrl}:`, error);
-          setDetailError(error.message);
-          setRecipe(null);
-          setEditableRecipe(null);
-          setIsLoadingRelated(false);
-        } else if (data) {
-          setRecipe(data);
-          setEditableRecipe(deepCopy(data));
-          setDetailError(null);
-          recordRecentRecipe(data.id);
-
-          const [allRecipes, relatedError] = await tryCatchAsync(
-            () => recipeApi.getAll(),
-            "RecipeDetailPage",
-            "Failed to load related recipes"
-          );
-
-          if (relatedError) {
-            logger.error("RecipeDetailPage", "Error fetching related recipes:", relatedError);
-          } else if (allRecipes) {
-            setRelatedRecipes(
-              allRecipes
-                .filter((r) => r.main === data.main && r.id !== data.id)
-                .slice(0, 2)
-            );
-          }
-
-          setIsLoadingRelated(false);
-        }
-
-        setIsFetchingDetails(false);
-      };
-
-      fetchRecipe();
-    } else {
-      logger.warn("RecipeDetailPage", "No recipe ID found in URL parameters.");
-      setIsFetchingDetails(false);
-      setIsLoadingRelated(false);
-      setDetailError("No recipe ID provided.");
-    }
-  }, [params.recipeId]);
-
-  if (isFetchingDetails) {
-    return (
-      <div className="min-h-screen">
-        <div className="max-w-2xl mx-auto p-1">
-          <div className="bg-white p-5 rounded-xl">
-            <RecipeDetailSkeleton />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!recipe) {
-    return (
-      <div className="text-center text-red-700 bg-red-100 border border-red-300 p-4 rounded max-w-2xl mx-auto mt-8">
-        {detailError || "Recipe not found!"}
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen">
       <div className="max-w-2xl mx-auto p-1">
         {!isEditing && (
-          <RouterLink
-            to={ROUTES.HOME}
+          <NextLink
+            href={ROUTES.HOME}
             className="inline-flex items-center text-stone-500 hover:text-stone-800 mb-4 group text-sm"
           >
             <ChevronLeft size={16} className="mr-1 group-hover:-translate-x-1 transition-transform" />
             Back to Recipes
-          </RouterLink>
+          </NextLink>
         )}
 
         <div className="bg-white p-5 rounded-xl">
-          {editableRecipe && (
-            isEditing ? (
+          {isEditing ? (
               <RecipeForm
                 initialRecipe={editableRecipe}
                 onSave={handleSave}
@@ -367,11 +281,10 @@ const RecipeDetailPage: React.FC = () => {
               />
             ) : (
               <RecipeReadView recipe={recipe} />
-            )
-          )}
+            )}
         </div>
 
-        <SignedIn>
+        <Show when="signed-in">
           <div className="flex justify-start space-x-2 pt-4">
             {!isEditing && (
               <Button onClick={handleEdit} variant="primary" className="px-4 py-2">
@@ -410,23 +323,17 @@ const RecipeDetailPage: React.FC = () => {
               Delete
             </Button>
           </div>
-        </SignedIn>
+        </Show>
 
-        {!isEditing && (isLoadingRelated || relatedRecipes.length > 0) && (
+        {!isEditing && relatedRecipes.length > 0 && (
           <div className="mt-10">
             <h2 className="text-2xl font-semibold text-stone-900 mb-4">Related Recipes</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {isLoadingRelated
-                ? Array.from({ length: 2 }).map((_, index) => (
-                    <div key={index} className={index > 0 ? 'hidden lg:block' : undefined}>
-                      <RecipeCardSkeleton />
-                    </div>
-                  ))
-                : relatedRecipes.map((related, index) => (
-                    <div key={related.id} className={index > 0 ? 'hidden lg:block' : undefined}>
-                      <RecipeCard recipe={related} />
-                    </div>
-                  ))}
+              {relatedRecipes.map((related, index) => (
+                <div key={related.id} className={index > 0 ? 'hidden lg:block' : undefined}>
+                  <RecipeCard recipe={related} />
+                </div>
+              ))}
             </div>
           </div>
         )}

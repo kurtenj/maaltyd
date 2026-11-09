@@ -62,3 +62,7 @@ api/**/*.js.map
 # Project-specific ignores
 docs/
 .env*.local
+
+# Next.js
+.next
+next-env.d.ts

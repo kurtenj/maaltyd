@@ -17,11 +17,16 @@ interface UseRecipesReturn {
   fetchRecipes: () => Promise<void>;
 }
 
-export function useRecipes(): UseRecipesReturn {
-  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+/**
+ * @param initialRecipes - Server-rendered recipes. When provided, the hook starts
+ *   populated and skips the initial client-side fetch.
+ */
+export function useRecipes(initialRecipes?: Recipe[]): UseRecipesReturn {
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>(initialRecipes ?? []);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialRecipes);
   const [error, setError] = useState<string | null>(null);
-  const [fetchAttempted, setFetchAttempted] = useState<boolean>(false);
+  const [fetchAttempted, setFetchAttempted] = useState<boolean>(!!initialRecipes);
+  const hasInitialRecipes = !!initialRecipes;
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
   const [selectedMainIngredient, setSelectedMainIngredient] = useState<
@@ -59,10 +64,10 @@ export function useRecipes(): UseRecipesReturn {
     setIsLoading(false);
   }, []);
 
-  // Fetch recipes on initial mount
+  // Fetch recipes on initial mount (unless the server already provided them)
   useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
+    if (!hasInitialRecipes) fetchRecipes();
+  }, [fetchRecipes, hasInitialRecipes]);
 
   // Debounce search term by 300ms
   useEffect(() => {

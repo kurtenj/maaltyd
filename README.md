@@ -10,7 +10,7 @@ Maaltyd is an intelligent web application designed to simplify your cooking and 
 
 ## About The Project
 
-Maaltyd is a recipe manager built with React and Vite, featuring a modern UI and quick filtering. Add recipes manually or import from URLs. Browse by ingredient, search by name, and filter by what you want to bake. Deploy to Vercel with serverless API routes for a simple, scalable setup.
+Maaltyd is a recipe manager built with Next.js, featuring a modern UI and quick filtering. Add recipes manually or import from URLs. Browse by ingredient, search by name, and filter by what you want to bake. Deploy to Vercel with serverless API routes for a simple, scalable setup.
 
 ## Key Features
 
@@ -38,7 +38,7 @@ cd maaltyd
 npm install
 
 # Set up environment variables (see .env.example)
-# VITE_API_URL, VITE_CLERK_PUBLISHABLE_KEY, etc.
+# NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY, KV_REST_API_URL, etc.
 
 # Run development server
 npm run dev
@@ -48,7 +48,7 @@ npm run dev
 
 ```bash
 npm run build
-npm run preview  # Preview production build
+npm run start    # Serve production build
 ```
 
 ### Test
@@ -60,7 +60,7 @@ npm run test:coverage  # With coverage report
 
 ## Tech Stack
 
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, React Router
+- **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4
 - **Backend:** Vercel Serverless Functions
 - **Auth:** Clerk
 - **Deployment:** Vercel

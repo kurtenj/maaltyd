@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { usePathname } from 'next/navigation';
 
 /**
  * Derives slide direction from route "depth": the home route ("/") is
@@ -11,20 +11,29 @@ function getDepth(pathname: string): number {
   return pathname === '/' ? 0 : 1;
 }
 
-interface DirectionState {
-  depth: number;
+interface NavigationState {
+  pathname: string;
   direction: 1 | -1;
+  /** False until the first client-side navigation, so the initial page load doesn't animate. */
+  hasNavigated: boolean;
 }
 
-export function useNavigationDirection(): 1 | -1 {
-  const location = useLocation();
-  const currentDepth = getDepth(location.pathname);
+export function useNavigationDirection(): NavigationState {
+  const pathname = usePathname();
 
-  const [state, setState] = useState<DirectionState>({ depth: currentDepth, direction: 1 });
+  const [state, setState] = useState<NavigationState>({ pathname, direction: 1, hasNavigated: false });
 
-  if (currentDepth !== state.depth) {
-    setState({ depth: currentDepth, direction: currentDepth > state.depth ? 1 : -1 });
+  if (pathname !== state.pathname) {
+    const prevDepth = getDepth(state.pathname);
+    const nextDepth = getDepth(pathname);
+    const next: NavigationState = {
+      pathname,
+      direction: nextDepth === prevDepth ? state.direction : nextDepth > prevDepth ? 1 : -1,
+      hasNavigated: true,
+    };
+    setState(next);
+    return next;
   }
 
-  return state.direction;
+  return state;
 }

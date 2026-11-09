@@ -4,7 +4,7 @@
  */
 
 // Determine if we're in development mode
-const isDev = import.meta.env.DEV || import.meta.env.MODE === 'development';
+const isDev = process.env.NODE_ENV !== 'production';
 
 // Enable logging based on environment or localStorage setting
 const isLoggingEnabled = () => {

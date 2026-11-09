@@ -35,21 +35,3 @@ export async function verifyAuth(request: Request): Promise<string | null> {
     return null;
   }
 }
-
-/**
- * Require authentication - throws an error if user is not authenticated
- * 
- * @param request - The incoming Request object
- * @returns The authenticated user ID
- * @throws Error if not authenticated
- */
-export async function requireAuth(request: Request): Promise<string> {
-  const userId = await verifyAuth(request);
-  
-  if (!userId) {
-    throw new Error('Authentication required');
-  }
-  
-  return userId;
-}
-
