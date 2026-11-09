@@ -8,9 +8,12 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* Light only, and the page background matches the app (stone-100) from the very first
+     paint, so opening the app never flashes white — or dark grey on dark-mode phones.
+     Keep in sync with background_color in public/manifest.webmanifest (#f5f5f4). */
+  color-scheme: light;
+  color: #213547;
+  background-color: var(--color-stone-100);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -35,12 +38,6 @@ body {
   overscroll-behavior: none;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-}
 
 @keyframes fadeIn {
   from {

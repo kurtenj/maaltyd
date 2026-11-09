@@ -117,7 +117,7 @@ Loading states use [Skullet](https://skullet.lochie.me/docs), which renders the 
 
 ### Deployment
 
-`vercel.json` pins `"framework": "nextjs"`. The app version shown in the footer comes from `package.json` via `NEXT_PUBLIC_APP_VERSION` (set in `next.config.ts`).
+`vercel.json` pins `"framework": "nextjs"`. The app is light-only: `:root` in `globals.css` uses `color-scheme: light` and the stone-100 background, matching `background_color` (`#f5f5f4`) in `public/manifest.webmanifest`, so launching the installed PWA never flashes white or dark — keep them in sync. The app version shown in the footer comes from `package.json` via `NEXT_PUBLIC_APP_VERSION` (set in `next.config.ts`).
 
 ## Environment Variables
 
