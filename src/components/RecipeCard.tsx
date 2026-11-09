@@ -6,6 +6,7 @@ import { Recipe } from "../types/recipe";
 import RecipeImagePlaceholder from "./RecipeImagePlaceholder";
 import { logger } from "../utils/logger";
 import { ROUTES } from "../utils/navigation";
+import { RECIPE_IMAGE_SIZE } from "../utils/constants";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -26,6 +27,8 @@ const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ recipe }) => {
           {recipe.imageUrl && !imageLoadError ? (
             <img
               src={recipe.imageUrl}
+
+              {...RECIPE_IMAGE_SIZE}
               alt={recipe.title}
               className="w-full h-full object-cover"
               onError={() => {

@@ -13,6 +13,7 @@ import { logger } from "../utils/logger";
 import { tryCatchAsync } from "../utils/errorHandling";
 import { ROUTES } from "../utils/navigation";
 import { recordRecentRecipe } from "../utils/recentRecipes";
+import { RECIPE_IMAGE_SIZE } from "../utils/constants";
 import { Check, ChevronLeft, Link, Sparkles } from "lucide-react";
 import { Show, useAuth } from '@clerk/nextjs';
 
@@ -63,6 +64,8 @@ const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe, isGeneratingIma
         {recipe.imageUrl && !imageLoadError ? (
           <img
             src={recipe.imageUrl}
+
+            {...RECIPE_IMAGE_SIZE}
             alt={recipe.title}
             className="w-full h-44 object-cover object-center"
             onError={() => {

@@ -26,3 +26,8 @@ export const NO_UNIT = '' as const;
 
 /** Default Claude model for AI features. Override via ANTHROPIC_MODEL env var. */
 export const ANTHROPIC_MODEL = 'claude-haiku-5-5';
+/**
+ * Pixel size of every AI-generated recipe photo. Also set as width/height on <img> tags so
+ * the browser (and Skullet's skeletons) know each image's space before it loads.
+ */
+export const RECIPE_IMAGE_SIZE = { width: 1536, height: 1024 } as const;

@@ -4,6 +4,7 @@ import { redis, getRecipeKey } from './redisClient';
 import { getRecipeById } from './recipeFetcher';
 import { serverLogger } from './serverLogger';
 import type { Recipe } from '../types/recipe';
+import { RECIPE_IMAGE_SIZE } from './constants';
 
 const MOD = 'recipeImage';
 
@@ -58,7 +59,7 @@ async function generateRecipeImage(recipe: Recipe): Promise<string> {
   const result = await getOpenAI().images.generate({
     model: process.env.OPENAI_IMAGE_MODEL ?? DEFAULT_IMAGE_MODEL,
     prompt: buildImagePrompt(recipe),
-    size: '1536x1024',
+    size: `${RECIPE_IMAGE_SIZE.width}x${RECIPE_IMAGE_SIZE.height}`,
     complexity: 'medium',
     output_format: 'webp',
     output_compression: 80,

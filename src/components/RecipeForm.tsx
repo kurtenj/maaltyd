@@ -5,7 +5,7 @@ import Input from "./Input";
 import { Trash2, Sparkles } from "lucide-react";
 import CookingPotIcon from "./CookingPotIcon";
 import RecipeImagePlaceholder from "./RecipeImagePlaceholder";
-import { STANDARD_UNITS, NO_UNIT } from "../utils/constants";
+import { STANDARD_UNITS, NO_UNIT, RECIPE_IMAGE_SIZE } from "../utils/constants";
 
 interface RecipeFormProps {
   initialRecipe: Recipe;
@@ -219,6 +219,8 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
               {recipe.imageUrl ? (
                 <img
                   src={recipe.imageUrl}
+
+                  {...RECIPE_IMAGE_SIZE}
                   alt={`Photo of ${recipe.title}`}
                   className={`w-full h-full object-cover ${isGeneratingImage ? "opacity-50 animate-pulse" : ""}`}
                 />
