@@ -100,7 +100,7 @@ The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scan
 
 Loading states use [Skullet](https://skullet.lochie.me/docs), which renders the **real component with sample data** invisibly, measures it, and draws a skeleton in that exact shape — there are no hand-built skeleton components.
 
-- `SkeletonProvider` (`src/components/SkeletonProvider.tsx`, client component) sets the app-wide look in the root layout: `mode="light"`, `theme={{ animation: 'shimmer' }}`, `reveal={{ ...smart, enter: { translate: '0 8px' } }}` ("smart" reveal with a "rise" entrance).
+- `SkeletonProvider` (`src/components/SkeletonProvider.tsx`, client component) sets the app-wide look in the root layout: `mode="light"`, `theme={{ animation: 'none' }}`, `reveal={{ ...smart, hold: 400, enter: { translate: '0 8px' } }}` ("smart" reveal with a "rise" entrance). `hold: 400` keeps skeletons off normal loads, whose data lands ~80–140ms after the shell; the 150ms default caused a flash on phones.
 - Pages wrap their async data in `<SkeletonSuspense id=… skeleton={<View …sampleData />}>` (see `src/app/page.tsx`, `src/app/recipe/[recipeId]/page.tsx`). Sample data lives in `src/utils/sampleRecipes.ts`; sample ids are `sample-*` and `recordRecentRecipe` ignores them, since the skeleton's effects really run.
 - Client-only content (e.g. "Last Viewed" from localStorage in `HomePage`) uses `<Skeleton id=… loading={…}>` so it reveals instead of popping in.
 - `id` makes Skullet remember the real shape for repeat visits. Add `?skullet-debug` to a URL to see whether reveals move the page.
