@@ -41,7 +41,7 @@ Client components (`'use client'`) holding the interactive page UI: `HomePage`, 
 - **State:** `src/hooks/useRecipes.ts` manages the list (filter by `main`, debounced title search). Pass `initialRecipes` to start populated and skip the client fetch.
 - **API client:** `src/services/api.ts` — `recipeApi` wraps `fetch` calls to `/api/*` for mutations and import. Mutation methods take `getToken` from Clerk's `useAuth()` and send `Authorization: Bearer <token>`.
 - **Navigation:** use `next/link` / `useRouter` from `next/navigation`, with paths from `ROUTES` in `src/utils/navigation.ts`.
-- Anything reading `localStorage` (e.g. `recentRecipes`) must run in an effect, not during render, to avoid hydration mismatches.
+- Anything reading `localStorage` must run in an effect, not during render, to avoid hydration mismatches. Prefer a cookie when the server should render it (see Recent recipes).
 
 ### API routes (`src/app/api/`)
 
@@ -102,7 +102,7 @@ Loading states use [Skullet](https://skullet.lochie.me/docs), which renders the 
 
 - `SkeletonProvider` (`src/components/SkeletonProvider.tsx`, client component) sets the app-wide look in the root layout: `mode="light"`, `theme={{ animation: 'none' }}`, `reveal={{ ...smart, hold: 400, enter: { translate: '0 8px' } }}` ("smart" reveal with a "rise" entrance). `hold: 400` keeps skeletons off normal loads, whose data lands ~80–140ms after the shell; the 150ms default caused a flash on phones.
 - Pages wrap their async data in `<SkeletonSuspense id=… skeleton={<View …sampleData />}>` (see `src/app/page.tsx`, `src/app/recipe/[recipeId]/page.tsx`). Sample data lives in `src/utils/sampleRecipes.ts`; sample ids are `sample-*` and `recordRecentRecipe` ignores them, since the skeleton's effects really run.
-- Client-only content (e.g. "Last Viewed" from localStorage in `HomePage`) uses `<Skeleton id=… loading={…}>` so it reveals instead of popping in.
+- Don't wrap content whose *size* varies per visit in a remembered-shape `<Skeleton>` — a stale shape reserves space that then collapses. Render it on the server instead (as "Last Viewed" does via the cookie).
 - `id` makes Skullet remember the real shape for repeat visits. Add `?skullet-debug` to a URL to see whether reveals move the page.
 
 ### Animations
@@ -113,7 +113,7 @@ Loading states use [Skullet](https://skullet.lochie.me/docs), which renders the 
 
 - **Error handling:** `tryCatchAsync(fn, module, errorMessage?)` from `src/utils/errorHandling.ts` returns `[result, error]` tuples — used throughout pages and hooks instead of bare try/catch.
 - **Logging:** `logger` from `src/utils/logger.ts` — logs are suppressed when `NODE_ENV === 'production'`; can be re-enabled at runtime via `localStorage.setItem('debug', 'true')`. Server-side uses `serverLogger` from `src/utils/serverLogger.ts`.
-- **Recent recipes:** `src/utils/recentRecipes.ts` — tracks last 5 viewed recipe IDs in `localStorage`.
+- **Recent recipes:** `src/utils/recentRecipes.ts` — last 5 viewed recipe IDs in the `recent-recipes` cookie (migrated from the old `localStorage` key on first write). `src/app/page.tsx` reads it with `cookies()` so "Last Viewed" is server-rendered with no layout jump; `HomePage` re-reads it after mount only to catch back-navigation to a cached render.
 
 ### Deployment
 

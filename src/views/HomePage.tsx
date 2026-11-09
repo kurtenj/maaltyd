@@ -2,11 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Skeleton } from 'skullet/react';
 import { useRecipes } from '../hooks/useRecipes';
 import RecipeCard from '../components/RecipeCard';
 import { ROUTES } from '../utils/navigation';
-import { getRecentRecipeIds } from '../utils/recentRecipes';
+import { readRecentRecipeIds } from '../utils/recentRecipes';
 
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -14,9 +13,11 @@ import type { Recipe } from '../types/recipe';
 
 interface HomePageProps {
   initialRecipes: Recipe[];
+  /** Recently viewed IDs, read from the cookie on the server so "Last Viewed" is right on first paint */
+  initialRecentIds: string[];
 }
 
-const HomePage: React.FC<HomePageProps> = ({ initialRecipes }) => {
+const HomePage: React.FC<HomePageProps> = ({ initialRecipes, initialRecentIds }) => {
   const {
     allRecipes,
     error,
@@ -28,14 +29,17 @@ const HomePage: React.FC<HomePageProps> = ({ initialRecipes }) => {
     handleMainIngredientChange,
   } = useRecipes(initialRecipes);
 
-  // localStorage is browser-only, so read it after hydration (null until then)
-  const [recentIds, setRecentIds] = useState<string[] | null>(null);
+  const [recentIds, setRecentIds] = useState<string[]>(initialRecentIds);
+
+  // Going "back" to this page restores a cached render from before the last recipe view,
+  // so re-read the cookie once mounted and update only if it actually changed.
   useEffect(() => {
-    setRecentIds(getRecentRecipeIds());
+    const latest = readRecentRecipeIds();
+    setRecentIds((current) => (latest.join(',') === current.join(',') ? current : latest));
   }, []);
 
   const recentRecipes = useMemo(() => {
-    if (!allRecipes.length || !recentIds) return [];
+    if (!allRecipes.length) return [];
     return recentIds
       .map((id) => allRecipes.find((r) => r.id === id))
       .filter((r): r is NonNullable<typeof r> => r !== undefined);
@@ -43,22 +47,19 @@ const HomePage: React.FC<HomePageProps> = ({ initialRecipes }) => {
 
   return (
     <div className="min-h-screen">
-      {/* Last Viewed — read from localStorage after hydration; Skullet remembers its
-          shape, so it rises into place instead of popping in */}
-      <Skeleton id="last-viewed" loading={recentIds === null}>
-        {recentRecipes.length > 0 && (
-          <div className="mb-10">
-            <h2 className="text-2xl font-semibold text-stone-900 mb-4">Last Viewed</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {recentRecipes.slice(0, 3).map((recipe, index) => (
-                <div key={recipe.id} className={index > 0 ? 'hidden lg:block' : undefined}>
-                  <RecipeCard recipe={recipe} />
-                </div>
-              ))}
-            </div>
+      {/* Last Viewed — server-rendered from the recent-recipes cookie */}
+      {recentRecipes.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-2xl font-semibold text-stone-900 mb-4">Last Viewed</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {recentRecipes.slice(0, 3).map((recipe, index) => (
+              <div key={recipe.id} className={index > 0 ? 'hidden lg:block' : undefined}>
+                <RecipeCard recipe={recipe} />
+              </div>
+            ))}
           </div>
-        )}
-      </Skeleton>
+        </div>
+      )}
 
       {/* All Recipes Header */}
       <div className="flex items-center justify-between mb-6">
