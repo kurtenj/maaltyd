@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { z } from 'zod';
 import { redis, RECIPE_PREFIX, getRecipeKey } from './redisClient';
 import { RecipeSchema } from './apiSchemas';
 import { serverLogger } from './serverLogger';
@@ -29,7 +30,7 @@ export const fetchAllRecipes = cache(async (logContext = 'recipeFetcher'): Promi
     if (!recipe) return [];
     const result = RecipeSchema.safeParse(recipe);
     if (!result.success) {
-      serverLogger.warn(logContext, `invalid recipe data for key ${recipeKeys[index]}, skipping:`, result.error.flatten());
+      serverLogger.warn(logContext, `invalid recipe data for key ${recipeKeys[index]}, skipping:`, z.flattenError(result.error));
       return [];
     }
     return [result.data];
@@ -49,7 +50,7 @@ export async function getRecipeById(id: string): Promise<Recipe | null> {
 
   const result = RecipeSchema.safeParse(data);
   if (!result.success) {
-    serverLogger.warn('recipeFetcher', `invalid data in Redis for recipe ${id}:`, result.error.flatten());
+    serverLogger.warn('recipeFetcher', `invalid data in Redis for recipe ${id}:`, z.flattenError(result.error));
     throw new Error('Invalid recipe data stored.');
   }
   return result.data;

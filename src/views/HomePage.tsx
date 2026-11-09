@@ -85,7 +85,7 @@ const HomePage: React.FC<HomePageProps> = ({ initialRecipes }) => {
               placeholder="Search recipes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-[2] min-w-0"
+              className="flex-2 min-w-0"
             />
             <div className="select-wrapper flex-1 min-w-0 relative">
               <select

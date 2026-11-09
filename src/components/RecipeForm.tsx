@@ -133,7 +133,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
     setRecipe({ ...recipe, instructions: updatedInstructions });
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     await onSave(recipe);
   };
@@ -215,7 +215,7 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
         <div>
           <span className="block uppercase text-xs font-bold text-stone-400 mb-1">Photo</span>
           <div className="flex items-center gap-4">
-            <div className="w-36 h-24 flex-shrink-0 rounded-md overflow-hidden bg-stone-100">
+            <div className="w-36 h-24 shrink-0 rounded-md overflow-hidden bg-stone-100">
               {recipe.imageUrl ? (
                 <img
                   src={recipe.imageUrl}

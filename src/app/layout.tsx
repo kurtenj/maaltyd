@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body>
           <div className="min-h-screen flex flex-col bg-stone-100">
             <Header />
-            <main className="flex-grow container mx-auto p-4 overflow-x-hidden">
+            <main className="grow container mx-auto p-4 overflow-x-hidden">
               <PageTransition>{children}</PageTransition>
             </main>
             <Footer />

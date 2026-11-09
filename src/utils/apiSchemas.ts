@@ -22,7 +22,7 @@ export const RecipeSchema = z.object({
       }
       return val;
     },
-    z.string().url().nullable().optional()
+    z.url().nullable().optional()
   ),
   main: z.string().min(1),
   other: z.array(IngredientSchema).min(1),

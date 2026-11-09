@@ -20,8 +20,8 @@
 
 html {
   font-family: var(--font-bricolage), sans-serif;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox, Chrome 121+, Edge */
+  overscroll-behavior: none;
 }
 
 html::-webkit-scrollbar {
@@ -32,10 +32,6 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  overscroll-behavior: none;
-}
-
-html {
   overscroll-behavior: none;
 }
 
@@ -87,8 +83,8 @@ html {
 }
 
 .select-with-arrow {
-  appearance: none !important;
   -webkit-appearance: none !important;
+  appearance: none !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -105,9 +101,11 @@ html {
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
 input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }

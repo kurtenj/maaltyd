@@ -1,4 +1,5 @@
 import { NextResponse, after } from 'next/server';
+import { z } from 'zod';
 import { RecipeCreateSchema } from '../../../utils/apiSchemas';
 import { redis, getRecipeKey } from '../../../utils/redisClient';
 import { fetchAllRecipes } from '../../../utils/recipeFetcher';
@@ -42,9 +43,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const validationResult = RecipeCreateSchema.safeParse(requestBody);
   if (!validationResult.success) {
-    serverLogger.error(MOD, 'POST recipe validation failed:', validationResult.error.flatten());
+    serverLogger.error(MOD, 'POST recipe validation failed:', z.flattenError(validationResult.error));
     return NextResponse.json(
-      { message: 'Invalid recipe data provided.', errors: validationResult.error.flatten() },
+      { message: 'Invalid recipe data provided.', errors: z.flattenError(validationResult.error) },
       { status: 400 }
     );
   }

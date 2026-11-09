@@ -8,7 +8,7 @@ import type { Recipe } from '../types/recipe';
 const MOD = 'recipeImage';
 
 /** "Fast, high-quality everyday image generation" per OpenAI's docs. Override via env. */
-export const DEFAULT_IMAGE_MODEL = 'gpt-image-2.6-flare';
+const DEFAULT_IMAGE_MODEL = 'gpt-image-2.6-flare';
 
 // Created lazily so a missing API key fails the request, not the build
 let openai: OpenAI | null = null;
@@ -24,7 +24,7 @@ type RecipeForPrompt = Pick<Recipe, 'title' | 'main' | 'other'>;
  * Changing this changes the look of every *new* photo — re-run the backfill script
  * (`npm run backfill:images -- --all`) to bring existing recipes in line.
  */
-export const IMAGE_STYLE = [
+const IMAGE_STYLE = [
   'Camera: 45-degree three-quarter angle, 50mm lens look, the dish centered with generous space around it, the whole dish in frame.',
   'Surface: the same light natural oak tabletop in every shot, slightly blurred toward the back.',
   'Vessel: one plain matte off-white ceramic plate, or a matching matte off-white ceramic bowl for soups, stews, noodles in broth, and other liquid dishes.',
@@ -53,7 +53,7 @@ export function buildImagePrompt(recipe: RecipeForPrompt): string {
 }
 
 /** Generate an image for the recipe and upload it to Vercel Blob. Returns the public URL. */
-export async function generateRecipeImage(recipe: Recipe): Promise<string> {
+async function generateRecipeImage(recipe: Recipe): Promise<string> {
   const started = Date.now();
   const result = await getOpenAI().images.generate({
     model: process.env.OPENAI_IMAGE_MODEL ?? DEFAULT_IMAGE_MODEL,

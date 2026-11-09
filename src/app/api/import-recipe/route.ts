@@ -276,7 +276,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const { has_recipe: _hasRecipe, ...recipeFields } = output;
   const parsed = ExtractedRecipeSchema.safeParse(recipeFields);
   if (!parsed.success) {
-    serverLogger.error(MOD, 'Schema validation failed:', parsed.error.flatten());
+    serverLogger.error(MOD, 'Schema validation failed:', z.flattenError(parsed.error));
     return NextResponse.json(
       { message: 'The extracted recipe data was incomplete. Try a different URL.' },
       { status: 422 }

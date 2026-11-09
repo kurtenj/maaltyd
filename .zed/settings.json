@@ -1,0 +1,10 @@
+// Project settings for Zed: https://zed.dev/docs/configuring-zed#settings-files
+{
+  "languages": {
+    "CSS": {
+      // Tailwind-aware CSS server understands @theme / @apply / @layer (Tailwind v4)
+      // instead of flagging them as unknown at-rules
+      "language_servers": ["tailwindcss-intellisense-css", "!vscode-css-language-server", "..."]
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { RecipeUpdateSchema } from '../../../../utils/apiSchemas';
 import { redis, getRecipeKey } from '../../../../utils/redisClient';
 import { fetchRecipeById, getRecipeById } from '../../../../utils/recipeFetcher';
@@ -74,9 +75,9 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<N
 
   const validationResult = RecipeUpdateSchema.safeParse(bodyWithoutId);
   if (!validationResult.success) {
-    serverLogger.error(MOD, 'PUT validation failed:', validationResult.error.flatten());
+    serverLogger.error(MOD, 'PUT validation failed:', z.flattenError(validationResult.error));
     return NextResponse.json(
-      { message: 'Invalid recipe data provided.', errors: validationResult.error.flatten() },
+      { message: 'Invalid recipe data provided.', errors: z.flattenError(validationResult.error) },
       { status: 400 }
     );
   }

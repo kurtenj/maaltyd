@@ -12,7 +12,7 @@ export interface AppError {
 /**
  * Format error for display to users
  */
-export function formatErrorMessage(error: unknown): string {
+function formatErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -31,7 +31,7 @@ export function formatErrorMessage(error: unknown): string {
 /**
  * Process an error with consistent logging
  */
-export function handleError(module: string, error: unknown, userMessage?: string): AppError {
+function handleError(module: string, error: unknown, userMessage?: string): AppError {
   // Log the error
   logger.error(module, 'Error caught:', error);
   

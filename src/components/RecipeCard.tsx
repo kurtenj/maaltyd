@@ -22,7 +22,7 @@ const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ recipe }) => {
     >
       <div className="flex h-full">
         {/* Image Section (Square) */}
-        <div className="w-28 h-28 flex-shrink-0">
+        <div className="w-28 h-28 shrink-0">
           {recipe.imageUrl && !imageLoadError ? (
             <img
               src={recipe.imageUrl}
@@ -42,8 +42,8 @@ const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ recipe }) => {
         </div>
 
         {/* Text Content Section */}
-        <div className="p-4 flex flex-col justify-center flex-grow min-w-0">
-          <h3 className="text-md font-bold mb-1 capitalize text-stone-800 truncate">
+        <div className="p-4 flex flex-col justify-center grow min-w-0">
+          <h3 className="text-base font-bold mb-1 capitalize text-stone-800 truncate">
             {recipe.title}
           </h3>
           <h2 className="uppercase text-xs font-bold mb-2 mt-2 text-stone-400">
