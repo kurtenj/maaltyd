@@ -88,4 +88,15 @@ describe('useRecipes', () => {
     });
     expect(result.current.allRecipes).toEqual(newRecipes);
   });
+
+  it('adopts fresh server data when initialRecipes changes (pull-to-refresh)', () => {
+    const { result, rerender } = renderHook(({ recipes }) => useRecipes(recipes), {
+      initialProps: { recipes: sampleRecipes.slice(0, 1) },
+    });
+    expect(result.current.allRecipes.map((r) => r.title)).toEqual(['Pasta']);
+
+    rerender({ recipes: sampleRecipes });
+    expect(result.current.allRecipes.map((r) => r.title)).toEqual(['Pasta', 'Salad']);
+    expect(recipeApi.getAll).not.toHaveBeenCalled();
+  });
 });

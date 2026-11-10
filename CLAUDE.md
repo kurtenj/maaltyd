@@ -106,6 +106,10 @@ Loading states use [Skullet](https://skullet.lochie.me/docs), which renders the 
 - Don't wrap content whose *size* varies per visit in a remembered-shape `<Skeleton>` — a stale shape reserves space that then collapses. Render it on the server instead (as "Last Viewed" does via the cookie).
 - `id` makes Skullet remember the real shape for repeat visits. Add `?skullet-debug` to a URL to see whether reveals move the page.
 
+### Pull to refresh
+
+`PullToRefresh` (`src/components/PullToRefresh.tsx`) wraps the home page in `src/app/page.tsx` (outside `SkeletonSuspense`, so the skeleton's sample render doesn't get its own copy). Pulling down from the top past 70px and releasing calls `router.refresh()` in a transition, re-running the server component; the animated `CookingPotIcon` shows meanwhile. It's custom because iOS home-screen apps have no native pull-to-refresh and `globals.css` sets `overscroll-behavior: none`. Views that copy server props into state (`useRecipes`, `HomePage` recents) must re-sync when those props change, or a refresh is silently ignored.
+
 ### Animations
 
 `motion` (formerly Framer Motion, imported as `motion/react`) is the animation library. Page transitions live in `src/components/PageTransition.tsx` (`LazyMotion` + `m.div` keyed by pathname): an enter-only slide whose direction comes from `useNavigationDirection`. There is no exit animation, because the App Router swaps route content before an `AnimatePresence` exit could play. `CookingPotIcon` (`src/components/CookingPotIcon.tsx`) is the pattern to follow for imperative animation: it uses `useAnimation()` controls driven by an `isAnimating` prop, with `motion.g` elements and named variant states (`normal` / `animate`). New animated icons should follow this same shape.

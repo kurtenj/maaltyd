@@ -31,6 +31,11 @@ const HomePage: React.FC<HomePageProps> = ({ initialRecipes, initialRecentIds })
 
   const [recentIds, setRecentIds] = useState<string[]>(initialRecentIds);
 
+  // Adopt fresh server values after a refresh (useState only reads its initial value once)
+  useEffect(() => {
+    setRecentIds(initialRecentIds);
+  }, [initialRecentIds]);
+
   // Going "back" to this page restores a cached render from before the last recipe view,
   // so re-read the cookie once mounted and update only if it actually changed.
   useEffect(() => {

@@ -64,6 +64,12 @@ export function useRecipes(initialRecipes?: Recipe[]): UseRecipesReturn {
     setIsLoading(false);
   }, []);
 
+  // Server re-renders (e.g. pull-to-refresh calling router.refresh()) pass fresh props;
+  // adopt them, since useState only reads its initial value once
+  useEffect(() => {
+    if (initialRecipes) setAllRecipes(initialRecipes);
+  }, [initialRecipes]);
+
   // Fetch recipes on initial mount (unless the server already provided them)
   useEffect(() => {
     if (!hasInitialRecipes) fetchRecipes();
