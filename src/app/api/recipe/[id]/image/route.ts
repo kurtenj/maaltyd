@@ -18,7 +18,7 @@ const imageRateLimit = new Ratelimit({
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Generate a new photo for the recipe, replacing the current one. Returns { imageUrl }. */
+/** Generate a new photo for the recipe, replacing the current one. Returns { imageUrl, thumbnailUrl }. */
 export async function POST(request: Request, { params }: RouteContext): Promise<NextResponse> {
   const userId = await verifyAuth(request);
   if (!userId) {
@@ -38,11 +38,11 @@ export async function POST(request: Request, { params }: RouteContext): Promise<
   const { id } = await params;
 
   try {
-    const imageUrl = await attachGeneratedImage(id, { onlyIfMissing: false });
-    if (!imageUrl) {
+    const urls = await attachGeneratedImage(id, { onlyIfMissing: false });
+    if (!urls) {
       return NextResponse.json({ message: 'Recipe not found.' }, { status: 404 });
     }
-    return NextResponse.json({ imageUrl });
+    return NextResponse.json(urls);
   } catch (error) {
     serverLogger.error(MOD, `image generation failed for ${id}:`, error);
     return NextResponse.json({ message: 'Photo generation failed — please try again.' }, { status: 500 });

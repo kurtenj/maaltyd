@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   del: vi.fn(),
   redisSet: vi.fn(),
   getRecipeById: vi.fn(),
+  resize: vi.fn(),
 }));
 
 vi.mock('openai', () => ({
@@ -16,6 +17,16 @@ vi.mock('openai', () => ({
   },
 }));
 vi.mock('@vercel/blob', () => ({ put: mocks.put, del: mocks.del }));
+vi.mock('sharp', () => ({
+  default: () => {
+    const chain = {
+      resize: (opts: unknown) => (mocks.resize(opts), chain),
+      webp: () => chain,
+      toBuffer: async () => Buffer.from('thumb'),
+    };
+    return chain;
+  },
+}));
 vi.mock('./redisClient', () => ({
   redis: { set: mocks.redisSet },
   getRecipeKey: (id: string) => `recipe:${id}`,
@@ -25,8 +36,11 @@ vi.mock('./serverLogger', () => ({ serverLogger: { log: vi.fn(), warn: vi.fn(), 
 
 const { buildImagePrompt, attachGeneratedImage } = await import('./recipeImage');
 
-const NEW_URL = 'https://abc.public.blob.vercel-storage.com/recipe-images/r1-2.webp';
-const OLD_OWN_URL = 'https://abc.public.blob.vercel-storage.com/recipe-images/r1-1.webp';
+const BLOB = 'https://abc.public.blob.vercel-storage.com/';
+const OLD_OWN_URL = `${BLOB}recipe-images/r1-1.webp`;
+const OLD_OWN_THUMB = `${BLOB}recipe-images/r1-1-thumb.webp`;
+const isNewPhoto = (u: string) => /recipe-images\/r1-\d{6,}\.webp$/.test(u);
+const isNewThumb = (u: string) => /recipe-images\/r1-\d{6,}-thumb\.webp$/.test(u);
 
 const recipe = (overrides: Partial<Recipe> = {}): Recipe => ({
   id: 'r1',
@@ -40,7 +54,7 @@ const recipe = (overrides: Partial<Recipe> = {}): Recipe => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.generate.mockResolvedValue({ data: [{ b64_json: Buffer.from('img').toString('base64') }] });
-  mocks.put.mockResolvedValue({ url: NEW_URL });
+  mocks.put.mockImplementation(async (pathname: string) => ({ url: `${BLOB}${pathname}` }));
   mocks.del.mockResolvedValue(undefined);
   mocks.redisSet.mockResolvedValue('OK');
 });
@@ -63,16 +77,18 @@ describe('buildImagePrompt', () => {
 });
 
 describe('attachGeneratedImage', () => {
-  it('generates, uploads, and saves the image when the recipe has none', async () => {
+  it('generates, uploads the photo and a 576x384 thumbnail, and saves both', async () => {
     mocks.getRecipeById.mockResolvedValue(recipe());
 
-    await expect(attachGeneratedImage('r1', { onlyIfMissing: true })).resolves.toBe(NEW_URL);
-    expect(mocks.put).toHaveBeenCalledWith(
-      expect.stringMatching(/^recipe-images\/r1-\d+\.webp$/),
-      expect.any(Buffer),
-      expect.objectContaining({ access: 'public', contentType: 'image/webp' })
-    );
-    expect(mocks.redisSet).toHaveBeenCalledWith('recipe:r1', expect.objectContaining({ imageUrl: NEW_URL }), { xx: true });
+    const urls = await attachGeneratedImage('r1', { onlyIfMissing: true });
+    expect(isNewPhoto(urls!.imageUrl)).toBe(true);
+    expect(isNewThumb(urls!.thumbnailUrl)).toBe(true);
+    expect(mocks.resize).toHaveBeenCalledWith(expect.objectContaining({ width: 576, height: 384 }));
+    expect(mocks.put).toHaveBeenCalledTimes(2);
+    for (const call of mocks.put.mock.calls) {
+      expect(call[2]).toEqual(expect.objectContaining({ access: 'public', contentType: 'image/webp' }));
+    }
+    expect(mocks.redisSet).toHaveBeenCalledWith('recipe:r1', expect.objectContaining(urls), { xx: true });
   });
 
   it('does nothing in onlyIfMissing mode when the recipe already has an image', async () => {
@@ -82,14 +98,16 @@ describe('attachGeneratedImage', () => {
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
-  it('keeps edits made during generation and discards the image if the user added one meanwhile', async () => {
+  it('discards both uploads if a photo was added while generating', async () => {
     mocks.getRecipeById
       .mockResolvedValueOnce(recipe())
       .mockResolvedValueOnce(recipe({ imageUrl: 'https://example.com/added-meanwhile.jpg' }));
 
     await expect(attachGeneratedImage('r1', { onlyIfMissing: true })).resolves.toBeNull();
     expect(mocks.redisSet).not.toHaveBeenCalled();
-    expect(mocks.del).toHaveBeenCalledWith(NEW_URL);
+    const deleted: string[] = mocks.del.mock.calls[0][0];
+    expect(deleted).toHaveLength(2);
+    expect(deleted.some(isNewPhoto) && deleted.some(isNewThumb)).toBe(true);
   });
 
   it('saves on top of the latest recipe data, not the stale copy', async () => {
@@ -100,27 +118,24 @@ describe('attachGeneratedImage', () => {
     await attachGeneratedImage('r1', { onlyIfMissing: true });
     expect(mocks.redisSet).toHaveBeenCalledWith(
       'recipe:r1',
-      expect.objectContaining({ title: 'Renamed While Generating', imageUrl: NEW_URL }),
+      expect.objectContaining({ title: 'Renamed While Generating' }),
       { xx: true }
     );
   });
 
-  it('cleans up the uploaded image if the recipe was deleted during generation', async () => {
+  it('cleans up both uploads if the recipe was deleted during generation', async () => {
     mocks.getRecipeById.mockResolvedValueOnce(recipe()).mockResolvedValueOnce(null);
 
     await expect(attachGeneratedImage('r1', { onlyIfMissing: false })).resolves.toBeNull();
-    expect(mocks.del).toHaveBeenCalledWith(NEW_URL);
+    expect(mocks.del.mock.calls[0][0]).toHaveLength(2);
   });
 
-  it('replaces an existing image when regenerating and deletes the old one only if we created it', async () => {
-    mocks.getRecipeById.mockResolvedValue(recipe({ imageUrl: OLD_OWN_URL }));
-    await expect(attachGeneratedImage('r1', { onlyIfMissing: false })).resolves.toBe(NEW_URL);
-    expect(mocks.del).toHaveBeenCalledWith(OLD_OWN_URL);
+  it('on regenerate, deletes the old photo and thumbnail only if we created them', async () => {
+    mocks.getRecipeById.mockResolvedValue(recipe({ imageUrl: OLD_OWN_URL, thumbnailUrl: OLD_OWN_THUMB }));
+    await attachGeneratedImage('r1', { onlyIfMissing: false });
+    expect(mocks.del).toHaveBeenCalledWith([OLD_OWN_URL, OLD_OWN_THUMB]);
 
-    vi.clearAllMocks();
-    mocks.generate.mockResolvedValue({ data: [{ b64_json: 'aW1n' }] });
-    mocks.put.mockResolvedValue({ url: NEW_URL });
-    mocks.redisSet.mockResolvedValue('OK');
+    mocks.del.mockClear();
     mocks.getRecipeById.mockResolvedValue(recipe({ imageUrl: 'https://example.com/someone-elses.jpg' }));
     await attachGeneratedImage('r1', { onlyIfMissing: false });
     expect(mocks.del).not.toHaveBeenCalled();

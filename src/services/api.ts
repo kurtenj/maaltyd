@@ -136,17 +136,19 @@ export const recipeApi = {
   },
 
   /**
-   * Generate a new photo for a recipe (replaces the current one). Returns the new image URL.
+   * Generate a new photo for a recipe (replaces the current one). Returns the new photo and thumbnail URLs.
    */
-  async regenerateImage(id: string, getToken: (() => Promise<string | null>) | null): Promise<string> {
+  async regenerateImage(
+    id: string,
+    getToken: (() => Promise<string | null>) | null
+  ): Promise<{ imageUrl: string; thumbnailUrl: string }> {
     const token = getToken ? await getToken() : null;
     const response = await fetch(`/api/recipe/${encodeURIComponent(id)}/image`, {
       ...NO_CACHE_OPTIONS,
       method: 'POST',
       headers: getAuthHeaders(token),
     });
-    const { imageUrl } = await handleApiResponse<{ imageUrl: string }>(response);
-    return imageUrl;
+    return handleApiResponse<{ imageUrl: string; thumbnailUrl: string }>(response);
   },
 
   /**

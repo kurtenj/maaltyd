@@ -95,12 +95,16 @@ describe('RecipeForm', () => {
   });
 
   it('shows the new photo after regenerating, and keeps it on save', async () => {
-    const onRegenerateImage = vi.fn().mockResolvedValue('https://img.example.com/new.webp');
+    const onRegenerateImage = vi.fn().mockResolvedValue({
+      imageUrl: 'https://img.example.com/new.webp',
+      thumbnailUrl: 'https://img.example.com/new-thumb.webp',
+    });
     const { onSave } = renderForm({ onRegenerateImage });
 
     fireEvent.click(screen.getByText('Generate new photo'));
+    // The preview is small, so it shows the thumbnail
     await waitFor(() => {
-      expect(screen.getByAltText('Photo of Test Recipe')).toHaveAttribute('src', 'https://img.example.com/new.webp');
+      expect(screen.getByAltText('Photo of Test Recipe')).toHaveAttribute('src', 'https://img.example.com/new-thumb.webp');
     });
 
     fireEvent.click(screen.getByText('Save Recipe'));

@@ -13,6 +13,7 @@ const sample = (n: number, title: string, main: string, ingredients: string[]): 
   title,
   main,
   imageUrl: SAMPLE_IMAGE,
+  thumbnailUrl: SAMPLE_IMAGE,
   other: ingredients.map((name) => ({ name, quantity: 1, unit: 'cup' })),
   instructions: [
     'Heat the oil in a large pan over medium heat and add the onion and garlic.',

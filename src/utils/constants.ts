@@ -31,3 +31,6 @@ export const ANTHROPIC_MODEL = 'claude-haiku-5-5';
  * the browser (and Skullet's skeletons) know each image's space before it loads.
  */
 export const RECIPE_IMAGE_SIZE = { width: 1536, height: 1024 } as const;
+
+/** Thumbnail stored alongside each photo, used by recipe cards and the edit preview. */
+export const RECIPE_THUMBNAIL_SIZE = { width: 576, height: 384 } as const;

@@ -64,7 +64,6 @@ const RecipeReadView: React.FC<RecipeReadViewProps> = ({ recipe, isGeneratingIma
         {recipe.imageUrl && !imageLoadError ? (
           <img
             src={recipe.imageUrl}
-
             {...RECIPE_IMAGE_SIZE}
             alt={recipe.title}
             className="w-full h-44 object-cover object-center"
@@ -211,9 +210,9 @@ const RecipeDetailPage: React.FC<RecipeDetailPageProps> = ({ initialRecipe, rela
       if (cancelled) return;
 
       if (latest?.imageUrl) {
-        const imageUrl = latest.imageUrl;
-        setRecipe((prev) => ({ ...prev, imageUrl }));
-        setEditableRecipe((prev) => ({ ...prev, imageUrl }));
+        const urls = { imageUrl: latest.imageUrl, thumbnailUrl: latest.thumbnailUrl };
+        setRecipe((prev) => ({ ...prev, ...urls }));
+        setEditableRecipe((prev) => ({ ...prev, ...urls }));
       }
       if (latest?.imageUrl || attempts >= IMAGE_POLL_MAX_ATTEMPTS) {
         clearInterval(timer);
@@ -228,11 +227,11 @@ const RecipeDetailPage: React.FC<RecipeDetailPageProps> = ({ initialRecipe, rela
     };
   }, [isAwaitingImage, recipeId, router]);
 
-  const handleRegenerateImage = async (): Promise<string> => {
-    const imageUrl = await recipeApi.regenerateImage(recipeId, getToken);
+  const handleRegenerateImage = async () => {
+    const urls = await recipeApi.regenerateImage(recipeId, getToken);
     // Saved server-side already; keep the read view in sync (the form updates its own copy)
-    setRecipe((prev) => ({ ...prev, imageUrl }));
-    return imageUrl;
+    setRecipe((prev) => ({ ...prev, ...urls }));
+    return urls;
   };
 
   const handleEdit = () => {

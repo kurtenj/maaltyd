@@ -13,6 +13,7 @@ export interface Recipe {
   id: string; // Unique identifier derived from the filename
   title: string;
   imageUrl?: string | null; // Optional URL for the recipe image
+  thumbnailUrl?: string | null; // Small version of imageUrl for cards and previews
   main: string;
   other: Ingredient[]; // Changed to array of Ingredient objects
   instructions: string[];

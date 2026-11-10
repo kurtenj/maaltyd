@@ -1,10 +1,11 @@
 import OpenAI from 'openai';
+import sharp from 'sharp';
 import { put, del } from '@vercel/blob';
 import { redis, getRecipeKey } from './redisClient';
 import { getRecipeById } from './recipeFetcher';
 import { serverLogger } from './serverLogger';
 import type { Recipe } from '../types/recipe';
-import { RECIPE_IMAGE_SIZE } from './constants';
+import { RECIPE_IMAGE_SIZE, RECIPE_THUMBNAIL_SIZE } from './constants';
 
 const MOD = 'recipeImage';
 
@@ -53,8 +54,35 @@ export function buildImagePrompt(recipe: RecipeForPrompt): string {
     .join(' ');
 }
 
-/** Generate an image for the recipe and upload it to Vercel Blob. Returns the public URL. */
-async function generateRecipeImage(recipe: Recipe): Promise<string> {
+export interface RecipeImageUrls {
+  imageUrl: string;
+  thumbnailUrl: string;
+}
+
+/**
+ * Downscale a full recipe photo for cards and previews: 576×384 WebP, ~25KB vs ~150KB+.
+ * That's still sharp on 3× phone screens, where a 112px card is 336 device pixels tall.
+ */
+export async function createThumbnail(fullImage: Buffer): Promise<Buffer> {
+  return sharp(fullImage)
+    .resize({ width: RECIPE_THUMBNAIL_SIZE.width, height: RECIPE_THUMBNAIL_SIZE.height, fit: 'cover' })
+    .webp({ quality: 70 })
+    .toBuffer();
+}
+
+/** Upload a full photo and its thumbnail under one shared name. */
+async function uploadRecipeImages(recipeId: string, fullImage: Buffer): Promise<RecipeImageUrls> {
+  const base = `recipe-images/${recipeId}-${Date.now()}`;
+  const thumbnail = await createThumbnail(fullImage);
+  const [full, thumb] = await Promise.all([
+    put(`${base}.webp`, fullImage, { access: 'public', contentType: 'image/webp' }),
+    put(`${base}-thumb.webp`, thumbnail, { access: 'public', contentType: 'image/webp' }),
+  ]);
+  return { imageUrl: full.url, thumbnailUrl: thumb.url };
+}
+
+/** Generate a photo for the recipe and upload it (plus thumbnail) to Vercel Blob. */
+async function generateRecipeImage(recipe: Recipe): Promise<RecipeImageUrls> {
   const started = Date.now();
   const result = await getOpenAI().images.generate({
     model: process.env.OPENAI_IMAGE_MODEL ?? DEFAULT_IMAGE_MODEL,
@@ -70,16 +98,13 @@ async function generateRecipeImage(recipe: Recipe): Promise<string> {
     throw new Error('Image generation returned no image data');
   }
 
-  const blob = await put(`recipe-images/${recipe.id}-${Date.now()}.webp`, Buffer.from(b64, 'base64'), {
-    access: 'public',
-    contentType: 'image/webp',
-  });
+  const urls = await uploadRecipeImages(recipe.id, Buffer.from(b64, 'base64'));
 
   serverLogger.log(MOD, `generated image for ${recipe.id} in ${Date.now() - started}ms`, {
     usage: result.usage,
-    url: blob.url,
+    ...urls,
   });
-  return blob.url;
+  return urls;
 }
 
 /** Only delete images we created ourselves (Vercel Blob, recipe-images/ folder). */
@@ -93,45 +118,47 @@ export function isOwnBlobUrl(url: string | null | undefined): url is string {
   }
 }
 
+/** Delete whichever of these blobs are ours; failures are logged, never thrown. */
+async function deleteOwnBlobs(urls: (string | null | undefined)[]): Promise<void> {
+  const own = urls.filter(isOwnBlobUrl);
+  if (own.length === 0) return;
+  await del(own).catch((error) => serverLogger.warn(MOD, `failed to delete old images ${own.join(', ')}:`, error));
+}
+
 /**
- * Generate an image and store it on the recipe.
+ * Generate a photo (and thumbnail) and store both on the recipe.
  *
  * - `onlyIfMissing`: skip if the recipe already has an image (used for automatic
- *   generation on create, so a URL the user typed in is never replaced).
+ *   generation on create, so an existing photo is never replaced).
  * - The recipe is re-read after generation so edits made in the meantime are kept;
- *   only `imageUrl` is changed.
+ *   only `imageUrl` and `thumbnailUrl` are changed.
  *
- * Returns the new image URL, or null if nothing was changed.
+ * Returns the new URLs, or null if nothing was changed.
  */
 export async function attachGeneratedImage(
   recipeId: string,
   { onlyIfMissing }: { onlyIfMissing: boolean }
-): Promise<string | null> {
+): Promise<RecipeImageUrls | null> {
   const before = await getRecipeById(recipeId);
   if (!before) return null;
   if (onlyIfMissing && before.imageUrl) return null;
 
-  const imageUrl = await generateRecipeImage(before);
+  const urls = await generateRecipeImage(before);
 
   // Re-read: generation takes a while and the recipe may have been edited or deleted
   const current = await getRecipeById(recipeId);
   if (!current || (onlyIfMissing && current.imageUrl)) {
-    await del(imageUrl).catch(() => undefined);
+    await deleteOwnBlobs([urls.imageUrl, urls.thumbnailUrl]);
     return null;
   }
 
-  const updated: Recipe = { ...current, imageUrl };
+  const updated: Recipe = { ...current, ...urls };
   const setResult = await redis.set(getRecipeKey(recipeId), updated, { xx: true });
   if (setResult === null) {
-    await del(imageUrl).catch(() => undefined);
+    await deleteOwnBlobs([urls.imageUrl, urls.thumbnailUrl]);
     return null;
   }
 
-  if (isOwnBlobUrl(current.imageUrl) && current.imageUrl !== imageUrl) {
-    await del(current.imageUrl).catch((error) =>
-      serverLogger.warn(MOD, `failed to delete old image ${current.imageUrl}:`, error)
-    );
-  }
-
-  return imageUrl;
+  await deleteOwnBlobs([current.imageUrl, current.thumbnailUrl].filter((u) => u !== urls.imageUrl && u !== urls.thumbnailUrl));
+  return urls;
 }

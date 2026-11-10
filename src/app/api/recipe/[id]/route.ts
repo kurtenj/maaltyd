@@ -88,8 +88,8 @@ export async function PUT(request: Request, { params }: RouteContext): Promise<N
     if (!existing) {
       return NextResponse.json({ message: 'Recipe not found.' }, { status: 404 });
     }
-    const { imageUrl: _ignoredImageUrl, ...recipeData } = validationResult.data;
-    const recipeToSave = { ...recipeData, id, imageUrl: existing.imageUrl } as Recipe;
+    const { imageUrl: _ignoredImageUrl, thumbnailUrl: _ignoredThumbnailUrl, ...recipeData } = validationResult.data;
+    const recipeToSave = { ...recipeData, id, imageUrl: existing.imageUrl, thumbnailUrl: existing.thumbnailUrl } as Recipe;
 
     // `xx`: only update an existing recipe, never create one via PUT
     const setResult = await redis.set(getRecipeKey(id), recipeToSave, { xx: true });

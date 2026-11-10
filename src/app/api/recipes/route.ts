@@ -52,8 +52,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const newId = crypto.randomUUID();
   const key = getRecipeKey(newId);
-  // Photos are always AI-generated, so any client-supplied imageUrl is ignored
-  const { imageUrl: _ignoredImageUrl, ...recipeData } = validationResult.data;
+  // Photos are always AI-generated, so any client-supplied image URLs are ignored
+  const { imageUrl: _ignoredImageUrl, thumbnailUrl: _ignoredThumbnailUrl, ...recipeData } = validationResult.data;
   const newRecipe = { ...recipeData, id: newId } as Recipe;
 
   try {

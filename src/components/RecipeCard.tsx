@@ -6,7 +6,7 @@ import { Recipe } from "../types/recipe";
 import RecipeImagePlaceholder from "./RecipeImagePlaceholder";
 import { logger } from "../utils/logger";
 import { ROUTES } from "../utils/navigation";
-import { RECIPE_IMAGE_SIZE } from "../utils/constants";
+import { RECIPE_THUMBNAIL_SIZE } from "../utils/constants";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -26,9 +26,11 @@ const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ recipe }) => {
         <div className="w-28 h-28 shrink-0">
           {recipe.imageUrl && !imageLoadError ? (
             <img
-              src={recipe.imageUrl}
-
-              {...RECIPE_IMAGE_SIZE}
+              // Thumbnail (~25KB) instead of the full photo; lazy so off-screen cards don't download yet
+              src={recipe.thumbnailUrl ?? recipe.imageUrl}
+              {...RECIPE_THUMBNAIL_SIZE}
+              loading="lazy"
+              decoding="async"
               alt={recipe.title}
               className="w-full h-full object-cover"
               onError={() => {

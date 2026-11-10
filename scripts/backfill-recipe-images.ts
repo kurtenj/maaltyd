@@ -52,7 +52,7 @@ async function main() {
     while (next < record.length) {
       const entry = record[next++];
       try {
-        entry.newImageUrl = await attachGeneratedImage(entry.id, { onlyIfMissing: false });
+        entry.newImageUrl = (await attachGeneratedImage(entry.id, { onlyIfMissing: false }))?.imageUrl ?? null;
         done++;
         console.log(`  ✓ (${done + failed}/${record.length}) ${entry.title}`);
       } catch (error) {

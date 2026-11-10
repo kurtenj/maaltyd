@@ -5,7 +5,7 @@ import Input from "./Input";
 import { Trash2, Sparkles } from "lucide-react";
 import CookingPotIcon from "./CookingPotIcon";
 import RecipeImagePlaceholder from "./RecipeImagePlaceholder";
-import { STANDARD_UNITS, NO_UNIT, RECIPE_IMAGE_SIZE } from "../utils/constants";
+import { STANDARD_UNITS, NO_UNIT, RECIPE_THUMBNAIL_SIZE } from "../utils/constants";
 
 interface RecipeFormProps {
   initialRecipe: Recipe;
@@ -21,7 +21,7 @@ interface RecipeFormProps {
   /** Callback to import a recipe from a URL. When provided, the URL import field is shown. */
   onImportUrl?: (url: string) => Promise<Omit<Recipe, "id">>;
   /** Generates and saves a new photo, resolving to its URL. When provided, a regenerate button is shown. */
-  onRegenerateImage?: () => Promise<string>;
+  onRegenerateImage?: () => Promise<{ imageUrl: string; thumbnailUrl: string }>;
 }
 
 const RecipeForm: React.FC<RecipeFormProps> = ({
@@ -73,8 +73,8 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
     setIsGeneratingImage(true);
     setImageError(null);
     try {
-      const imageUrl = await onRegenerateImage();
-      setRecipe((prev) => ({ ...prev, imageUrl }));
+      const urls = await onRegenerateImage();
+      setRecipe((prev) => ({ ...prev, ...urls }));
     } catch (err) {
       setImageError(err instanceof Error ? err.message : "Photo generation failed. Try again.");
     } finally {
@@ -216,11 +216,10 @@ const RecipeForm: React.FC<RecipeFormProps> = ({
           <span className="block uppercase text-xs font-bold text-stone-400 mb-1">Photo</span>
           <div className="flex items-center gap-4">
             <div className="w-36 h-24 shrink-0 rounded-md overflow-hidden bg-stone-100">
-              {recipe.imageUrl ? (
+              {recipe.thumbnailUrl || recipe.imageUrl ? (
                 <img
-                  src={recipe.imageUrl}
-
-                  {...RECIPE_IMAGE_SIZE}
+                  src={recipe.thumbnailUrl ?? recipe.imageUrl ?? undefined}
+                  {...RECIPE_THUMBNAIL_SIZE}
                   alt={`Photo of ${recipe.title}`}
                   className={`w-full h-full object-cover ${isGeneratingImage ? "opacity-50 animate-pulse" : ""}`}
                 />

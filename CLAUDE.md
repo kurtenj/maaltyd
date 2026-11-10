@@ -79,13 +79,14 @@ The content pipeline tries three sources in order: (1) `findRecipeJsonLd()` scan
 
 ### AI recipe photos
 
-`src/utils/recipeImage.ts` generates recipe photos with OpenAI (`gpt-image-2.6-flare` by default, overridable via `OPENAI_IMAGE_MODEL`; 1536×1024 WebP, ~$0.02 and ~8s each), uploads them to Vercel Blob under `recipe-images/`, and stores the URL on the recipe. **Photos are only ever AI-generated** — there is no image URL field, `POST /api/recipes` ignores any client `imageUrl`, and `PUT /api/recipe/:id` keeps the stored one.
+`src/utils/recipeImage.ts` generates recipe photos with OpenAI (`gpt-image-2.6-flare` by default, overridable via `OPENAI_IMAGE_MODEL`; 1536×1024 WebP, ~$0.02 and ~8s each), uploads them to Vercel Blob under `recipe-images/` together with a 576×384 thumbnail (`<name>-thumb.webp`, ~20–25KB via `sharp`), and stores both as `imageUrl` / `thumbnailUrl` on the recipe. Cards and the edit preview use `thumbnailUrl` (falling back to `imageUrl`) and lazy-load; only the detail page loads the full photo. **Photos are only ever AI-generated** — there is no image URL field, `POST /api/recipes` ignores any client `imageUrl`/`thumbnailUrl`, and `PUT /api/recipe/:id` keeps the stored ones.
 
 **Style consistency:** `buildImagePrompt()` = dish description + the shared `IMAGE_STYLE` constant, which pins camera angle, surface (light oak), vessel (matte off-white plate, or bowl for liquid dishes), light, grade, and props so only the food varies. If you change `IMAGE_STYLE`, run `npm run backfill:images -- --all` so existing photos match.
 
 - **Automatic:** `POST /api/recipes` always schedules generation with `after()`, so saving isn't slowed down. `AddRecipePage` then navigates to `ROUTES.RECIPE_DETAIL_AWAITING_IMAGE(id)` (`?photo=generating`), and `RecipeDetailPage` polls `GET /api/recipe/:id` every 3s (up to ~1 min) and shows "Generating photo…" meanwhile.
 - **Regenerate:** `POST /api/recipe/:id/image` (auth, 10/hour per user, prefix `ratelimit:image`), exposed as "Generate new photo" in `RecipeForm` via the `onRegenerateImage` prop (edit mode only, shown with a photo preview). It saves immediately, independent of the form's Save.
 - **Backfill:** `npm run backfill:images` (`scripts/backfill-recipe-images.ts`, via `tsx` with `.env.local`) regenerates photos for recipes without an AI photo; `--all` does every recipe, `--dry-run` lists only, `--limit N` caps it. It writes previous image URLs to `scripts/backfill-output/` (gitignored) before changing anything. Note `.env.local` points at the production Redis.
+- **Thumbnail backfill:** `npm run backfill:thumbnails` (`scripts/backfill-thumbnails.ts`) creates missing thumbnails from existing photos — no regeneration, no OpenAI cost; `--dry-run` lists only. Safe to re-run.
 - `attachGeneratedImage()` re-reads the recipe after generating so concurrent edits aren't lost, never replaces a user-supplied image in automatic mode, cleans up the uploaded blob if the recipe disappeared, and deletes the previous image on regenerate **only** if it's one of ours (Blob `recipe-images/`).
 
 ### Button component

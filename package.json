@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "backfill:images": "tsx --env-file=.env.local scripts/backfill-recipe-images.ts"
+    "backfill:images": "tsx --env-file=.env.local scripts/backfill-recipe-images.ts",
+    "backfill:thumbnails": "tsx --env-file=.env.local scripts/backfill-thumbnails.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
@@ -28,6 +29,7 @@
     "openai": "^7.54.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "sharp": "^0.35.5",
     "skullet": "^0.0.3",
     "zod": "^4.3.6"
   },

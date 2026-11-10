@@ -11,19 +11,16 @@ export const IngredientSchema = z.object({
   unit: z.enum(standardUnitsTuple).optional(),
 });
 
+// Optional URL field: empty string, null, or undefined all become null
+const optionalUrl = () =>
+  z.preprocess((val) => (val === '' || val === null || val === undefined ? null : val), z.url().nullable().optional());
+
 export const RecipeSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  imageUrl: z.preprocess(
-    (val) => {
-      // Convert empty string, null, or undefined to null
-      if (val === '' || val === null || val === undefined) {
-        return null;
-      }
-      return val;
-    },
-    z.url().nullable().optional()
-  ),
+  imageUrl: optionalUrl(),
+  /** Small version of imageUrl for cards and previews (see RECIPE_THUMBNAIL_SIZE) */
+  thumbnailUrl: optionalUrl(),
   main: z.string().min(1),
   other: z.array(IngredientSchema).min(1),
   instructions: z.array(z.string().min(1)).min(1),
