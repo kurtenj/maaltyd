@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { redis, RECIPE_PREFIX, getRecipeKey } from './redisClient';
 import { RecipeSchema } from './apiSchemas';
 import { serverLogger } from './serverLogger';
+import { sortRecipesByTitle } from './recipeSort';
 import type { Recipe } from '../types/recipe';
 
 /**
@@ -37,7 +38,7 @@ export const fetchAllRecipes = cache(async (logContext = 'recipeFetcher'): Promi
   });
 
   serverLogger.log(logContext, `returning ${validRecipes.length} valid recipes`);
-  return validRecipes;
+  return sortRecipesByTitle(validRecipes);
 });
 
 /**
