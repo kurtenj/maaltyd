@@ -12,6 +12,11 @@ const MAX_PULL = 110;
 const REFRESHING_OFFSET = 56;
 /** Finger travel is damped so the pull feels elastic. */
 const RESISTANCE = 0.5;
+/**
+ * The pot stays up at least this long, even when the data comes back sooner, so you get to
+ * see it: one full lid rattle in CookingPotIcon (0.9s animation + 0.2s pause).
+ */
+const MIN_REFRESH_MS = 1100;
 
 /**
  * Pull down from the top of the page to re-fetch its server data (router.refresh()).
@@ -22,7 +27,10 @@ const RESISTANCE = 0.5;
  */
 export default function PullToRefresh({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [isRefreshing, startRefresh] = useTransition();
+  const [isRefreshPending, startRefresh] = useTransition();
+  // Shown state outlives the transition until MIN_REFRESH_MS has passed
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshStartedAt = useRef(0);
   const [pull, setPull] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const startY = useRef<number | null>(null);
@@ -64,6 +72,8 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
       startY.current = null;
       setIsDragging(false);
       if (pullRef.current >= TRIGGER_DISTANCE) {
+        refreshStartedAt.current = Date.now();
+        setIsRefreshing(true);
         startRefresh(() => router.refresh());
       }
       pullRef.current = 0;
@@ -83,6 +93,14 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
     };
   }, [router, isRefreshing]);
 
+  // Once the data is back, hide the pot — but not before MIN_REFRESH_MS
+  useEffect(() => {
+    if (!isRefreshing || isRefreshPending) return;
+    const remaining = MIN_REFRESH_MS - (Date.now() - refreshStartedAt.current);
+    const timer = setTimeout(() => setIsRefreshing(false), Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [isRefreshing, isRefreshPending]);
+
   const offset = isRefreshing ? REFRESHING_OFFSET : pull;
   const progress = Math.min(offset / TRIGGER_DISTANCE, 1);
   const transition = isDragging ? 'none' : 'transform 250ms ease-out, opacity 250ms ease-out';
@@ -91,7 +109,7 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
     <div className="relative">
       <div
         aria-hidden={!isRefreshing}
-        className="absolute inset-x-0 top-0 flex justify-center text-stone-500 pointer-events-none"
+        className="absolute inset-x-0 top-0 flex justify-center text-stone-400 pointer-events-none"
         style={{
           transform: `translateY(${offset / 2 - 20}px) rotate(${isRefreshing ? 0 : progress * 180 - 180}deg)`,
           opacity: progress,

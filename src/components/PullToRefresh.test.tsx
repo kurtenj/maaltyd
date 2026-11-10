@@ -39,6 +39,26 @@ describe('PullToRefresh', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the refresh indicator up for at least 1.1s, even when data returns instantly', () => {
+    vi.useFakeTimers();
+    try {
+      pull(200);
+      expect(screen.getByRole('status')).toHaveTextContent('Refreshing recipes');
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByRole('status')).toHaveTextContent('Refreshing recipes');
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.queryByText('Refreshing recipes')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does nothing for a short pull', () => {
     pull(80); // 40px of pull, below the 70px trigger
     expect(refresh).not.toHaveBeenCalled();
